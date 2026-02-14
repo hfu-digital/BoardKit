@@ -16,3 +16,7 @@ export { ShareDialog } from './ShareDialog';
 export type { ShareDialogProps } from './ShareDialog';
 export { ExportDialog } from './ExportDialog';
 export type { ExportDialogProps } from './ExportDialog';
+export { Minimap } from './Minimap';
+export type { MinimapProps } from './Minimap';
+export { DropZone } from './DropZone';
+export type { DropZoneProps } from './DropZone';

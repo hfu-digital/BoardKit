@@ -238,6 +238,9 @@ export function useKeyboardShortcuts(): void {
                 '4': TOOL_IDS.TEXT,
                 '5': TOOL_IDS.ERASER,
                 '6': TOOL_IDS.HAND,
+                '7': TOOL_IDS.STICKY_NOTE,
+                '8': TOOL_IDS.CONNECTOR,
+                '9': TOOL_IDS.LASER,
             };
             if (toolMap[e.key]) {
                 store.setActiveTool(toolMap[e.key]);

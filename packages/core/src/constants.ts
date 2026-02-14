@@ -7,6 +7,9 @@ export const TOOL_IDS = {
     ERASER: 'eraser',
     TEXT: 'text',
     HAND: 'hand',
+    STICKY_NOTE: 'stickyNote',
+    CONNECTOR: 'connector',
+    LASER: 'laser',
 } as const;
 
 export const LIMITS = {

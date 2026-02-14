@@ -1,6 +1,8 @@
 import type { StrokeStyle, ShapeStyle, TextStyle } from './styles';
 
-export type ElementType = 'stroke' | 'shape' | 'text' | 'image' | 'stickyNote' | 'group';
+export type AnchorPosition = 'top' | 'right' | 'bottom' | 'left' | 'center';
+
+export type ElementType = 'stroke' | 'shape' | 'text' | 'image' | 'stickyNote' | 'group' | 'connector';
 
 export interface Point {
     x: number;
@@ -91,10 +93,26 @@ export interface GroupElement extends ElementBase {
     };
 }
 
+export interface ConnectorElement extends ElementBase {
+    type: 'connector';
+    data: {
+        startElementId: string;
+        endElementId: string;
+        startAnchor: AnchorPosition;
+        endAnchor: AnchorPosition;
+        waypoints: Point[];
+        style: StrokeStyle;
+        arrowStart: boolean;
+        arrowEnd: boolean;
+        bounds: Rect;
+    };
+}
+
 export type Element =
     | StrokeElement
     | ShapeElement
     | TextElement
     | ImageElement
     | StickyNoteElement
-    | GroupElement;
+    | GroupElement
+    | ConnectorElement;

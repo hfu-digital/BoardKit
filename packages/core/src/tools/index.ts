@@ -7,4 +7,7 @@ export { SelectTool } from './select.tool';
 export { EraserTool } from './eraser.tool';
 export { TextTool } from './text.tool';
 export type { TextToolEvent } from './text.tool';
+export { StickyNoteTool } from './sticky-note.tool';
+export { ConnectorTool, getAnchorPosition, closestAnchor } from './connector.tool';
+export { LaserTool } from './laser.tool';
 export { ToolRegistry } from './tool-registry';

@@ -1,4 +1,4 @@
-import { Module, type DynamicModule } from '@nestjs/common';
+import { Module, type DynamicModule, type Provider } from '@nestjs/common';
 import { BoardStorage } from './interfaces/board-storage.interface';
 import { AssetStorage } from './interfaces/asset-storage.interface';
 import { EventLogStorage } from './interfaces/event-log-storage.interface';
@@ -52,7 +52,7 @@ export const BOARD_MODULE_OPTIONS = 'BOARD_MODULE_OPTIONS';
 @Module({})
 export class BoardModule {
     static register(options: BoardModuleOptions): DynamicModule {
-        const providers = [
+        const providers: Provider[] = [
             {
                 provide: BOARD_MODULE_OPTIONS,
                 useValue: options,

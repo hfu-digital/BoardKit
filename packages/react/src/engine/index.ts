@@ -8,3 +8,6 @@ export { renderShape } from './element-renderers/shape.renderer';
 export { renderText } from './element-renderers/text.renderer';
 export { renderImage } from './element-renderers/image.renderer';
 export { renderStickyNote } from './element-renderers/sticky-note.renderer';
+export { renderConnector } from './element-renderers/connector.renderer';
+export { renderGrid } from './grid-renderer';
+export { renderAlignmentGuides } from './alignment-renderer';

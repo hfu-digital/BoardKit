@@ -4,6 +4,9 @@ import { ShapeTool } from './shape.tool';
 import { SelectTool } from './select.tool';
 import { EraserTool } from './eraser.tool';
 import { TextTool } from './text.tool';
+import { StickyNoteTool } from './sticky-note.tool';
+import { ConnectorTool } from './connector.tool';
+import { LaserTool } from './laser.tool';
 
 export class ToolRegistry {
     private tools = new Map<string, Tool>();
@@ -27,6 +30,9 @@ export class ToolRegistry {
         registry.register(new SelectTool());
         registry.register(new EraserTool());
         registry.register(new TextTool());
+        registry.register(new StickyNoteTool());
+        registry.register(new ConnectorTool());
+        registry.register(new LaserTool());
         return registry;
     }
 }

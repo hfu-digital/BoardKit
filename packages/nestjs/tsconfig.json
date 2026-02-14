@@ -3,7 +3,12 @@
     "compilerOptions": {
         "lib": ["ES2022"],
         "experimentalDecorators": true,
-        "emitDecoratorMetadata": true
+        "emitDecoratorMetadata": true,
+        "rootDir": "src",
+        "outDir": "dist"
     },
+    "references": [
+        { "path": "../core" }
+    ],
     "include": ["src"]
 }

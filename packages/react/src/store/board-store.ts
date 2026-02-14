@@ -5,8 +5,9 @@ import type {
     Participant,
     CursorPosition,
     SceneState,
+    GridConfig,
 } from '@boardkit/core';
-import { History, createScene } from '@boardkit/core';
+import { History, createScene, createDefaultGridConfig } from '@boardkit/core';
 import type { ViewportState } from '../engine/viewport';
 import { createViewport } from '../engine/viewport';
 
@@ -31,6 +32,7 @@ export interface BoardStoreState {
     participants: Map<string, Participant>;
     cursors: Map<string, CursorPosition>;
     lastError: BoardError | null;
+    gridConfig: GridConfig;
 }
 
 export type StoreSlice =
@@ -42,7 +44,8 @@ export type StoreSlice =
     | 'selection'
     | 'participants'
     | 'cursors'
-    | 'error';
+    | 'error'
+    | 'grid';
 
 export class BoardStore {
     private state: BoardStoreState;
@@ -63,6 +66,7 @@ export class BoardStore {
             participants: new Map(),
             cursors: new Map(),
             lastError: null,
+            gridConfig: createDefaultGridConfig(),
         };
     }
 
@@ -134,6 +138,12 @@ export class BoardStore {
     removeCursor(userId: string): void {
         this.state.cursors.delete(userId);
         this.notify('cursors');
+    }
+
+    // Grid config
+    setGridConfig(config: Partial<GridConfig>): void {
+        this.state.gridConfig = { ...this.state.gridConfig, ...config };
+        this.notify('grid');
     }
 
     // Error state

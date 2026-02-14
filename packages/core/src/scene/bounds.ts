@@ -14,6 +14,8 @@ export function calculateBounds(element: Element): Rect {
             return element.data.bounds;
         case 'group':
             return element.data.bounds;
+        case 'connector':
+            return element.data.bounds;
     }
 }
 
