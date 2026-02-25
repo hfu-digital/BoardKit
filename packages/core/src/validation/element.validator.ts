@@ -1,6 +1,6 @@
 import type { Element, ElementType } from '../types/elements';
 
-const VALID_TYPES: ElementType[] = ['stroke', 'shape', 'text', 'image', 'stickyNote', 'group'];
+const VALID_TYPES: ElementType[] = ['stroke', 'shape', 'text', 'image', 'stickyNote', 'group', 'connector'];
 
 export interface ValidationResult {
     valid: boolean;
@@ -78,6 +78,15 @@ export function validateElement(data: unknown): ValidationResult {
             case 'group':
                 if (!Array.isArray(d.childIds)) errors.push('Group must have a childIds array');
                 if (!d.bounds || typeof d.bounds !== 'object') errors.push('Group must have a bounds object');
+                break;
+            case 'connector':
+                if (typeof d.startElementId !== 'string') errors.push('Connector must have a startElementId string');
+                if (typeof d.endElementId !== 'string') errors.push('Connector must have an endElementId string');
+                if (typeof d.startAnchor !== 'string') errors.push('Connector must have a startAnchor');
+                if (typeof d.endAnchor !== 'string') errors.push('Connector must have an endAnchor');
+                if (!Array.isArray(d.waypoints)) errors.push('Connector must have a waypoints array');
+                if (!d.style || typeof d.style !== 'object') errors.push('Connector must have a style object');
+                if (!d.bounds || typeof d.bounds !== 'object') errors.push('Connector must have a bounds object');
                 break;
         }
     }

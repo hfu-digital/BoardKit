@@ -1,0 +1,16 @@
+{
+    "name": "@boardkit/example-basic",
+    "private": true,
+    "version": "0.0.0",
+    "description": "Basic BoardKit example — NestJS server + React client",
+    "scripts": {
+        "dev:server": "ts-node src/server.ts",
+        "dev:client": "vite",
+        "build": "echo 'Example app — no build required'"
+    },
+    "dependencies": {
+        "@hfu.digital/boardkit-core": "workspace:*",
+        "@hfu.digital/boardkit-nestjs": "workspace:*",
+        "@hfu.digital/boardkit-react": "workspace:*"
+    }
+}

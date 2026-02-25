@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ElementMutation, ServerMessage, ClientMessage } from '@hfu.digital/boardkit-core';
-import { PROTOCOL_VERSION } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
+import { io, Socket } from 'socket.io-client';
 
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -17,52 +17,45 @@ export interface UseCollaborationResult {
 export function useCollaboration(boardId: string): UseCollaborationResult {
     const { config, store } = useBoardKit();
     const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
-    const wsRef = useRef<WebSocket | null>(null);
+    const socketRef = useRef<Socket | null>(null);
     const requestIdRef = useRef(0);
-    const reconnectAttemptRef = useRef(0);
     const lastSequenceRef = useRef(0);
-    const sessionIdRef = useRef<string | null>(null);
 
-    const connect = useCallback(() => {
+    useEffect(() => {
         if (!config.wsUrl) return;
 
-        // Check if max retries exceeded
-        if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
-            setConnectionState('disconnected');
-            store.setError({
-                code: 'MAX_RETRIES_EXCEEDED',
-                message: `Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts`,
-                timestamp: Date.now(),
-                recoverable: true,
-            });
-            return;
-        }
+        const socket = io(config.wsUrl, {
+            path: '/board',
+            transports: ['websocket'],
+            autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 30000,
+            auth: {
+                token: config.authToken ?? '',
+            },
+        });
 
+        socketRef.current = socket;
         setConnectionState('connecting');
 
-        const ws = new WebSocket(config.wsUrl);
-        wsRef.current = ws;
+        socket.on('connect', () => {
+            setConnectionState('connecting');
 
-        ws.onopen = () => {
-            reconnectAttemptRef.current = 0;
-            const joinMsg: ClientMessage = {
-                type: 'join',
+            const joinPayload: Omit<ClientMessage & { type: 'join' }, 'type'> = {
                 boardId,
                 token: config.authToken ?? '',
                 lastSequence: lastSequenceRef.current || undefined,
             };
-            ws.send(JSON.stringify(joinMsg));
-        };
+            socket.emit('join', joinPayload);
+        });
 
-        ws.onmessage = (event) => {
-            const message: ServerMessage = JSON.parse(event.data);
-
+        socket.on('message', (message: ServerMessage) => {
             switch (message.type) {
                 case 'joined':
                     setConnectionState('connected');
                     lastSequenceRef.current = message.currentSequence;
-                    // Set session ID on join
-                    sessionIdRef.current = `${message.userId}-${message.currentSequence}`;
                     break;
 
                 case 'sync:delta':
@@ -135,8 +128,6 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
 
                 case 'error':
                     console.error(`Server error: ${message.code} - ${message.message}`);
-
-                    // Handle session mismatch
                     if (message.code === 'SESSION_MISMATCH') {
                         store.setError({
                             code: 'SESSION_MISMATCH',
@@ -147,74 +138,55 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
                     }
                     break;
             }
-        };
+        });
 
-        ws.onclose = () => {
-            wsRef.current = null;
-            if (connectionState !== 'disconnected') {
-                setConnectionState('reconnecting');
-                reconnectAttemptRef.current++;
+        socket.on('disconnect', () => {
+            setConnectionState('reconnecting');
+        });
 
-                if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
-                    setConnectionState('disconnected');
-                    store.setError({
-                        code: 'MAX_RETRIES_EXCEEDED',
-                        message: `Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts`,
-                        timestamp: Date.now(),
-                        recoverable: true,
-                    });
-                    return;
-                }
+        socket.on('reconnect_failed', () => {
+            setConnectionState('disconnected');
+            store.setError({
+                code: 'MAX_RETRIES_EXCEEDED',
+                message: `Connection failed after ${MAX_RECONNECT_ATTEMPTS} attempts`,
+                timestamp: Date.now(),
+                recoverable: true,
+            });
+        });
 
-                // Exponential backoff with jitter
-                const delay = Math.min(
-                    1000 * Math.pow(2, reconnectAttemptRef.current) + Math.random() * 1000,
-                    30000,
-                );
-                setTimeout(connect, delay);
-            }
-        };
+        socket.on('reconnect_attempt', () => {
+            setConnectionState('reconnecting');
+        });
 
-        ws.onerror = () => {
-            ws.close();
+        return () => {
+            socket.disconnect();
+            socketRef.current = null;
+            setConnectionState('disconnected');
         };
     }, [boardId, config.wsUrl, config.authToken, store]);
 
-    useEffect(() => {
-        connect();
-        return () => {
-            setConnectionState('disconnected');
-            wsRef.current?.close();
-            wsRef.current = null;
-        };
-    }, [connect]);
-
     const sendMutations = useCallback((mutations: ElementMutation[]) => {
-        const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        const msg: ClientMessage = {
-            type: 'mutate',
+        const socket = socketRef.current;
+        if (!socket?.connected) return;
+        socket.emit('mutate', {
             mutations,
             requestId: `req-${++requestIdRef.current}`,
-        };
-        ws.send(JSON.stringify(msg));
+        });
     }, []);
 
     const sendCursor = useCallback((position: { x: number; y: number }, pageId: string) => {
-        const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        const msg: ClientMessage = {
-            type: 'cursor',
+        const socket = socketRef.current;
+        if (!socket?.connected) return;
+        socket.emit('cursor', {
             position,
             pageId,
-        };
-        ws.send(JSON.stringify(msg));
+        });
     }, []);
 
     const disconnect = useCallback(() => {
+        socketRef.current?.disconnect();
+        socketRef.current = null;
         setConnectionState('disconnected');
-        wsRef.current?.close();
-        wsRef.current = null;
     }, []);
 
     return { connectionState, sendMutations, sendCursor, disconnect };

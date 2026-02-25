@@ -4,7 +4,7 @@ import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
 
 export default defineConfig({
-    plugins: [react(), dts({ rollupTypes: true })],
+    plugins: [react(), dts()],
     build: {
         lib: {
             entry: resolve(__dirname, 'src/index.ts'),
@@ -18,6 +18,7 @@ export default defineConfig({
                 'react-dom',
                 'react/jsx-runtime',
                 '@hfu.digital/boardkit-core',
+                'socket.io-client',
             ],
             output: {
                 globals: {

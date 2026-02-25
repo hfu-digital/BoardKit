@@ -1,14 +1,35 @@
 {
     "name": "@hfu.digital/boardkit-core",
     "version": "0.1.0",
+    "description": "Zero-dependency shared kernel for BoardKit — types, scene graph, tools, and collaboration protocol",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/hfu-digital/BoardKit.git",
+        "directory": "packages/core"
+    },
+    "keywords": ["whiteboard", "canvas", "collaboration", "real-time", "scene-graph", "boardkit"],
+    "sideEffects": false,
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
+    },
     "files": ["dist"],
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "scripts": {
         "build": "tsc",
         "dev": "tsc --watch",
         "clean": "rm -rf dist",
         "lint": "eslint src/",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "prepublishOnly": "npm run build"
     },
     "publishConfig": {
@@ -16,6 +37,7 @@
         "registry": "https://registry.npmjs.org/"
     },
     "devDependencies": {
-        "typescript": "^5.0.0"
+        "typescript": "^5.0.0",
+        "vitest": "^3.0.0"
     }
 }
