@@ -1,4 +1,4 @@
-import type { Point } from '@boardkit/core';
+import type { Point } from '@hfu.digital/boardkit-core';
 
 export interface TouchGestureCallbacks {
     onPanMove: (delta: Point) => void;

@@ -28,7 +28,7 @@ bun run dev
 bun run clean
 ```
 
-**Important**: `@boardkit/nestjs` and `@boardkit/react` use TypeScript project references (`"references": [{ "path": "../core" }]`). Core must be built first so its declaration files exist in `dist/`. Use `tsc -b` (not `tsc --noEmit`) for these packages.
+**Important**: `@hfu.digital/boardkit-nestjs` and `@hfu.digital/boardkit-react` use TypeScript project references (`"references": [{ "path": "../core" }]`). Core must be built first so its declaration files exist in `dist/`. Use `tsc -b` (not `tsc --noEmit`) for these packages.
 
 ## Code Style
 
@@ -40,7 +40,7 @@ bun run clean
 
 BoardKit is a collaborative whiteboard library organized as a Turborepo monorepo with three packages:
 
-### `@boardkit/core` — Zero-dependency shared kernel
+### `@hfu.digital/boardkit-core` — Zero-dependency shared kernel
 Pure TypeScript, no runtime dependencies. Contains:
 - **Types**: `Element` discriminated union (stroke | shape | text | image | stickyNote | group | connector), `Board`, `Page`, `Participant`, WebSocket protocol messages (`ClientMessage`/`ServerMessage`)
 - **Scene graph**: Immutable `SceneState` = `Map<string, Element>` + `elementOrder: string[]`. All mutations (`addElement`, `removeElement`, `updateElement`) return new state objects.
@@ -48,15 +48,15 @@ Pure TypeScript, no runtime dependencies. Contains:
 - **Operations**: LWW (Last-Writer-Wins) merge for collaboration conflicts (`mergeElement` compares `updatedAt`, remote wins on tie). History with undo/redo stack. Clipboard serialization/deserialization.
 - **Grid/Alignment**: `snapToGrid()`, `findAlignmentGuides()` for element snapping
 
-### `@boardkit/nestjs` — Backend NestJS DynamicModule
+### `@hfu.digital/boardkit-nestjs` — Backend NestJS DynamicModule
 Registered via `BoardModule.register(options)` with dependency-injected storage adapters:
 - **Abstract interfaces** (`BoardStorage`, `AssetStorage`, `EventLogStorage`, `BoardAuthGuard`): Consumers implement these. **Never imports `@prisma/client`** — Prisma adapters use structural typing only.
 - **Permission model**: viewer < editor < owner. Enforced in all 5 controllers and the WebSocket gateway. Controllers extract Bearer tokens and call `BoardAuthGuard.validateRequest()`.
-- **Realtime**: Socket.IO gateway at namespace `/board`. Protocol is typed in `@boardkit/core` (`ClientMessage`/`ServerMessage`). `CollaborationService` manages sessions with state machine: `created → active → idle → archived`.
+- **Realtime**: Socket.IO gateway at namespace `/board`. Protocol is typed in `@hfu.digital/boardkit-core` (`ClientMessage`/`ServerMessage`). `CollaborationService` manages sessions with state machine: `created → active → idle → archived`.
 - **Session types**: `ephemeral` (5-min idle timeout, no archival snapshot) vs `persistent` (15-min idle timeout, snapshot on archive)
 - **Testing utilities**: `InMemoryBoardStorage`, `InMemoryAssetStorage`, `MockAuthGuard` for unit tests without a database
 
-### `@boardkit/react` — React component library (Vite library mode)
+### `@hfu.digital/boardkit-react` — React component library (Vite library mode)
 - **BoardStore**: Mutable store living **outside React** (not useState/useReducer). Slice-based pub/sub (`subscribe('scene', callback)`). Hooks use `useSyncExternalStore` to bridge into React.
 - **Dual-canvas renderer**: `Canvas2DRenderer` creates two stacked `<canvas>` elements — static layer (only re-renders on scene nonce change) and interactive layer (every rAF frame for previews, cursors, selections). The static layer uses two-pass rendering: non-connectors first, then connectors.
 - **Input pipeline**: `InputPipeline` translates DOM PointerEvents → `InputEvent`, handles space+drag panning and wheel zoom. Feeds into `GestureRecognizer` which dispatches to the active `Tool`.

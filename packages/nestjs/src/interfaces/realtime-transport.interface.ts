@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from '@boardkit/core';
+import type { ClientMessage, ServerMessage } from '@hfu.digital/boardkit-core';
 
 export interface TransportConnection {
     id: string;

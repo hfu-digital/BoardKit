@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ElementMutation, ServerMessage, ClientMessage } from '@boardkit/core';
-import { PROTOCOL_VERSION } from '@boardkit/core';
+import type { ElementMutation, ServerMessage, ClientMessage } from '@hfu.digital/boardkit-core';
+import { PROTOCOL_VERSION } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';

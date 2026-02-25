@@ -1,4 +1,4 @@
-import type { Element } from '@boardkit/core';
+import type { Element } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from './viewport';
 import { applyViewportTransform } from './viewport';
 import { renderStroke } from './element-renderers/stroke.renderer';

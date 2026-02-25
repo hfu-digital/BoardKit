@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { addElement } from '@boardkit/core';
-import type { ImageElement } from '@boardkit/core';
+import { addElement } from '@hfu.digital/boardkit-core';
+import type { ImageElement } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 let imageIdCounter = 0;

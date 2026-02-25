@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LIMITS } from '@boardkit/core';
+import { LIMITS } from '@hfu.digital/boardkit-core';
 
 export interface SizeGuardLimits {
     maxElementsPerPage: number;

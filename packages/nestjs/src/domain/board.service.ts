@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Board, Page, Element } from '@boardkit/core';
+import type { Board, Page, Element } from '@hfu.digital/boardkit-core';
 import { BoardStorage, type CreateBoardInput, type CreatePageInput } from '../interfaces/board-storage.interface';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
 

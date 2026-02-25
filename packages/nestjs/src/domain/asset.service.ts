@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { Asset } from '@boardkit/core';
-import { LIMITS } from '@boardkit/core';
+import type { Asset } from '@hfu.digital/boardkit-core';
+import { LIMITS } from '@hfu.digital/boardkit-core';
 import { AssetStorage, type AssetMeta } from '../interfaces/asset-storage.interface';
 
 export interface AssetServiceLimits {

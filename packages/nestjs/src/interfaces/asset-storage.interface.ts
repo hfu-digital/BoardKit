@@ -1,4 +1,4 @@
-import type { Asset } from '@boardkit/core';
+import type { Asset } from '@hfu.digital/boardkit-core';
 
 export interface AssetMeta {
     mimeType: string;

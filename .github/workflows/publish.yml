@@ -33,19 +33,19 @@ jobs:
                   node-version: 20
                   registry-url: https://registry.npmjs.org
 
-            - name: Publish @boardkit/core
+            - name: Publish @hfu.digital/boardkit-core
               working-directory: packages/core
               run: bun publish --access public
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-            - name: Publish @boardkit/nestjs
+            - name: Publish @hfu.digital/boardkit-nestjs
               working-directory: packages/nestjs
               run: bun publish --access public
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-            - name: Publish @boardkit/react
+            - name: Publish @hfu.digital/boardkit-react
               working-directory: packages/react
               run: bun publish --access public
               env:

@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import type { GridConfig } from '@boardkit/core';
+import type { GridConfig } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 export interface UseGridResult {

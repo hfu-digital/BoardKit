@@ -1,5 +1,5 @@
-import type { InputEvent } from '@boardkit/core';
-import type { Point } from '@boardkit/core';
+import type { InputEvent } from '@hfu.digital/boardkit-core';
+import type { Point } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from './viewport';
 import { screenToWorld } from './viewport';
 

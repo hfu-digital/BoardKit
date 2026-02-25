@@ -1,4 +1,4 @@
-import type { ShapeElement } from '@boardkit/core';
+import type { ShapeElement } from '@hfu.digital/boardkit-core';
 
 export function renderShape(
     ctx: CanvasRenderingContext2D,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Participant, ElementMutation } from '@boardkit/core';
+import type { Participant, ElementMutation } from '@hfu.digital/boardkit-core';
 import { BoardStorage, type ElementUpsert } from '../interfaces/board-storage.interface';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
 

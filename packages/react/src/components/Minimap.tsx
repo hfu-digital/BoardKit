@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { useBoardKit } from '../context/BoardKitProvider';
-import type { Element, Rect } from '@boardkit/core';
-import { calculateBounds, mergeBounds } from '@boardkit/core';
+import type { Element, Rect } from '@hfu.digital/boardkit-core';
+import { calculateBounds, mergeBounds } from '@hfu.digital/boardkit-core';
 
 export interface MinimapProps {
     width?: number;

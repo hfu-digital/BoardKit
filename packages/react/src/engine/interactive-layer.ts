@@ -1,5 +1,5 @@
-import type { Element, Rect, Point } from '@boardkit/core';
-import type { CursorPosition } from '@boardkit/core';
+import type { Element, Rect, Point } from '@hfu.digital/boardkit-core';
+import type { CursorPosition } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from './viewport';
 import { applyViewportTransform, worldToScreen } from './viewport';
 import { renderElement } from './static-layer';

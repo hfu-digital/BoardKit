@@ -1,4 +1,4 @@
-import type { AlignmentGuide } from '@boardkit/core';
+import type { AlignmentGuide } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from './viewport';
 import { worldToScreen } from './viewport';
 

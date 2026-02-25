@@ -7,8 +7,8 @@ import {
     addElement,
     calculateBounds,
     mergeBounds,
-} from '@boardkit/core';
-import type { Element, Point } from '@boardkit/core';
+} from '@hfu.digital/boardkit-core';
+import type { Element, Point } from '@hfu.digital/boardkit-core';
 import { MIN_ZOOM, MAX_ZOOM } from '../engine/viewport';
 
 // Module-level clipboard (not system clipboard)

@@ -20,24 +20,24 @@ The standard Kit skill produces 2 packages (`backend` + `frontend`) with a simpl
 
 | Standard Kit Pattern | BoardKit Adaptation |
 |---|---|
-| 2 packages: `@scope/name-nestjs` + `@scope/name-react` | 3 packages: `@boardkit/core` + `@boardkit/nestjs` + `@boardkit/react` |
+| 2 packages: `@scope/name-nestjs` + `@scope/name-react` | 3 packages: `@hfu.digital/boardkit-core` + `@hfu.digital/boardkit-nestjs` + `@hfu.digital/boardkit-react` |
 | Single `KitStorage` abstract class | 3 storage ports: `BoardStorage`, `AssetStorage`, `EventLogStorage` |
 | REST-only data flow | WebSocket for realtime + REST for persistence |
 | Thin frontend hooks over API | Heavy canvas engine — frontend IS the product |
 | Simple `register({ storage })` | Extended `register()` with storage, auth, limits, sync, deployment config |
-| No shared types package | `@boardkit/core` serves as shared types + logic layer |
-| `react/jsx-runtime` as only external | `@boardkit/core` is a real dependency (not peer) for both nestjs and react |
+| No shared types package | `@hfu.digital/boardkit-core` serves as shared types + logic layer |
+| `react/jsx-runtime` as only external | `@hfu.digital/boardkit-core` is a real dependency (not peer) for both nestjs and react |
 
 ### Hard Rules (inherited from Kit Skill + BoardKit-specific)
 
 1. **NEVER `import` from `@prisma/client`** — structural typing only in adapters
 2. **NEVER bundle NestJS or React** — always `peerDependencies`
-3. **NEVER use Next.js-specific imports** in `@boardkit/react`
+3. **NEVER use Next.js-specific imports** in `@hfu.digital/boardkit-react`
 4. **ALWAYS use abstract classes** for storage interfaces (NestJS DI tokens)
 5. **ALWAYS use `DynamicModule.register()`** for the NestJS module
 6. **ALWAYS barrel export** via `index.ts` — only export the public API
 7. **ALWAYS use Vite Library Mode** for the React package build
-8. **`@boardkit/core` must have ZERO dependencies** — pure TypeScript only
+8. **`@hfu.digital/boardkit-core` must have ZERO dependencies** — pure TypeScript only
 9. **Canvas state lives OUTSIDE React** — mutable store, not useState/useReducer
 10. **Event log writes from day one** — even before version history UI exists
 
@@ -127,7 +127,7 @@ The standard Kit skill produces 2 packages (`backend` + `frontend`) with a simpl
 
 ---
 
-### Task 0.2 — Scaffold `@boardkit/core` Package
+### Task 0.2 — Scaffold `@hfu.digital/boardkit-core` Package
 
 **Package:** `packages/core`
 **Depends on:** 0.1
@@ -146,7 +146,7 @@ packages/core/
 1. `package.json`:
    ```json
    {
-     "name": "@boardkit/core",
+     "name": "@hfu.digital/boardkit-core",
      "version": "0.1.0",
      "main": "dist/index.js",
      "types": "dist/index.d.ts",
@@ -449,7 +449,7 @@ export * from './constants';
 
 ---
 
-### Task 0.4 — Scaffold `@boardkit/nestjs` Package
+### Task 0.4 — Scaffold `@hfu.digital/boardkit-nestjs` Package
 
 **Package:** `packages/nestjs`
 **Depends on:** 0.2, 0.3
@@ -468,7 +468,7 @@ packages/nestjs/
 1. `package.json`:
    ```json
    {
-     "name": "@boardkit/nestjs",
+     "name": "@hfu.digital/boardkit-nestjs",
      "version": "0.1.0",
      "main": "dist/index.js",
      "types": "dist/index.d.ts",
@@ -481,7 +481,7 @@ packages/nestjs/
        "prepublishOnly": "npm run build"
      },
      "dependencies": {
-       "@boardkit/core": "workspace:*"
+       "@hfu.digital/boardkit-core": "workspace:*"
      },
      "peerDependencies": {
        "@nestjs/common": "^10.0.0 || ^11.0.0",
@@ -500,7 +500,7 @@ packages/nestjs/
      }
    }
    ```
-   Note: `@boardkit/core` is a real `dependency`, not a peer. NestJS packages are peers.
+   Note: `@hfu.digital/boardkit-core` is a real `dependency`, not a peer. NestJS packages are peers.
 
 2. `tsconfig.json` — extends base, `"lib": ["ES2022"]` (no DOM needed on server). Add `"paths"` if needed for workspace resolution, or rely on npm workspaces.
 
@@ -532,7 +532,7 @@ packages/nestjs/src/
 import {
   Board, Page, Element, BoardMember, ShareLink,
   ElementMutation, Rect
-} from '@boardkit/core';
+} from '@hfu.digital/boardkit-core';
 
 export interface CreateBoardInput {
   name: string;
@@ -599,7 +599,7 @@ export abstract class BoardStorage {
 
 **Instructions — `asset-storage.interface.ts`:**
 ```typescript
-import { Asset } from '@boardkit/core';
+import { Asset } from '@hfu.digital/boardkit-core';
 
 export interface AssetMeta {
   mimeType: string;
@@ -617,7 +617,7 @@ export abstract class AssetStorage {
 
 **Instructions — `event-log-storage.interface.ts`:**
 ```typescript
-import { BoardEvent, BoardSnapshot } from '@boardkit/core';
+import { BoardEvent, BoardSnapshot } from '@hfu.digital/boardkit-core';
 
 export abstract class EventLogStorage {
   abstract append(event: Omit<BoardEvent, 'id'>): Promise<BoardEvent>;
@@ -644,7 +644,7 @@ export abstract class BoardAuthGuard {
 
 **Instructions — `realtime-transport.interface.ts`:**
 ```typescript
-import { ClientMessage, ServerMessage } from '@boardkit/core';
+import { ClientMessage, ServerMessage } from '@hfu.digital/boardkit-core';
 
 export interface TransportConnection {
   id: string;
@@ -698,7 +698,7 @@ Key implementation notes:
 
 ---
 
-### Task 0.7 — Scaffold `@boardkit/react` Package
+### Task 0.7 — Scaffold `@hfu.digital/boardkit-react` Package
 
 **Package:** `packages/react`
 **Depends on:** 0.3
@@ -718,7 +718,7 @@ packages/react/
 1. `package.json`:
    ```json
    {
-     "name": "@boardkit/react",
+     "name": "@hfu.digital/boardkit-react",
      "version": "0.1.0",
      "main": "dist/index.js",
      "module": "dist/index.es.js",
@@ -732,7 +732,7 @@ packages/react/
        "prepublishOnly": "npm run build"
      },
      "dependencies": {
-       "@boardkit/core": "workspace:*"
+       "@hfu.digital/boardkit-core": "workspace:*"
      },
      "peerDependencies": {
        "react": "^18.0.0 || ^19.0.0",
@@ -751,7 +751,7 @@ packages/react/
    }
    ```
 
-2. `vite.config.ts` — Library mode, externalize React + react-dom + react/jsx-runtime AND `@boardkit/core`:
+2. `vite.config.ts` — Library mode, externalize React + react-dom + react/jsx-runtime AND `@hfu.digital/boardkit-core`:
    ```typescript
    import { defineConfig } from 'vite';
    import react from '@vitejs/plugin-react';
@@ -770,13 +770,13 @@ packages/react/
        rollupOptions: {
          external: [
            'react', 'react-dom', 'react/jsx-runtime',
-           '@boardkit/core',
+           '@hfu.digital/boardkit-core',
          ],
          output: {
            globals: {
              react: 'React',
              'react-dom': 'ReactDOM',
-             '@boardkit/core': 'BoardKitCore',
+             '@hfu.digital/boardkit-core': 'BoardKitCore',
            },
          },
        },
@@ -814,7 +814,7 @@ Create factory functions (not static objects) so each test gets a fresh copy:
 
 Each returns `{ board: Board, pages: Page[], elements: Map<string, Element[]> }`.
 
-**Acceptance:** Build succeeds. Fixtures are importable from `@boardkit/core`.
+**Acceptance:** Build succeeds. Fixtures are importable from `@hfu.digital/boardkit-core`.
 
 ---
 
@@ -886,7 +886,7 @@ cd boardkit
 npm install
 npx turbo build
 ```
-And get clean builds for `@boardkit/core`, `@boardkit/nestjs`, `@boardkit/react`.
+And get clean builds for `@hfu.digital/boardkit-core`, `@hfu.digital/boardkit-nestjs`, `@hfu.digital/boardkit-react`.
 
 The full type system is defined, storage contracts are locked, and in-memory adapters exist for testing. **No business logic yet** — that's Sprint 1.
 
@@ -1221,7 +1221,7 @@ export abstract class BoardRenderer {
 }
 ```
 
-Note: This lives in `core` as the interface, but the Canvas 2D implementation lives in `@boardkit/react`.
+Note: This lives in `core` as the interface, but the Canvas 2D implementation lives in `@hfu.digital/boardkit-react`.
 
 **Acceptance:** Interface compiles. No DOM calls at runtime in core.
 
@@ -1824,7 +1824,7 @@ packages/nestjs/src/realtime/
 ```
 
 **Instructions — `board.gateway.ts`:**
-NestJS WebSocket gateway using Socket.IO (the default NestJS WS adapter). Handles all protocol messages defined in `@boardkit/core`:
+NestJS WebSocket gateway using Socket.IO (the default NestJS WS adapter). Handles all protocol messages defined in `@hfu.digital/boardkit-core`:
 
 ```typescript
 @WebSocketGateway({ namespace: '/board' })
@@ -2016,9 +2016,9 @@ Handle edge cases:
 | Item | Convention | Example |
 |------|-----------|---------|
 | Monorepo root | `boardkit-monorepo` | — |
-| Core package | `@boardkit/core` | — |
-| Backend package | `@boardkit/nestjs` | — |
-| Frontend package | `@boardkit/react` | — |
+| Core package | `@hfu.digital/boardkit-core` | — |
+| Backend package | `@hfu.digital/boardkit-nestjs` | — |
+| Frontend package | `@hfu.digital/boardkit-react` | — |
 | Storage interfaces | `{Name}Storage` | `BoardStorage`, `AssetStorage` |
 | Prisma adapters | `Prisma{Name}Adapter` | `PrismaBoardAdapter` |
 | NestJS module | `BoardModule` | — |

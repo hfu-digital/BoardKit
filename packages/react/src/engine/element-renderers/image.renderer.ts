@@ -1,4 +1,4 @@
-import type { ImageElement } from '@boardkit/core';
+import type { ImageElement } from '@hfu.digital/boardkit-core';
 
 const imageCache = new Map<string, HTMLImageElement>();
 

@@ -17,13 +17,13 @@ export default defineConfig({
                 'react',
                 'react-dom',
                 'react/jsx-runtime',
-                '@boardkit/core',
+                '@hfu.digital/boardkit-core',
             ],
             output: {
                 globals: {
                     react: 'React',
                     'react-dom': 'ReactDOM',
-                    '@boardkit/core': 'BoardKitCore',
+                    '@hfu.digital/boardkit-core': 'BoardKitCore',
                 },
             },
         },

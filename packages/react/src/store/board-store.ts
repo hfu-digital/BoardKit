@@ -6,8 +6,8 @@ import type {
     CursorPosition,
     SceneState,
     GridConfig,
-} from '@boardkit/core';
-import { History, createScene, createDefaultGridConfig } from '@boardkit/core';
+} from '@hfu.digital/boardkit-core';
+import { History, createScene, createDefaultGridConfig } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from '../engine/viewport';
 import { createViewport } from '../engine/viewport';
 
