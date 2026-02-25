@@ -11,6 +11,10 @@
         "lint": "eslint src/",
         "prepublishOnly": "npm run build"
     },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
+    },
     "devDependencies": {
         "typescript": "^5.0.0"
     }
