@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Board, Page } from '@boardkit/core';
+import type { Board, Page } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 export interface UseBoardResult {

@@ -8,7 +8,7 @@ import {
     MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import type { JoinMessage, MutateMessage, CursorMessage } from '@boardkit/core';
+import type { JoinMessage, MutateMessage, CursorMessage } from '@hfu.digital/boardkit-core';
 import { CollaborationService } from '../domain/collaboration.service';
 import { PermissionService } from '../domain/permission.service';
 import { BoardAuthGuard } from '../interfaces/auth-guard.interface';

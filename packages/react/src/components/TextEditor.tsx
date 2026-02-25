@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import type { Point, TextStyle } from '@boardkit/core';
-import { DEFAULT_TEXT_STYLE } from '@boardkit/core';
+import type { Point, TextStyle } from '@hfu.digital/boardkit-core';
+import { DEFAULT_TEXT_STYLE } from '@hfu.digital/boardkit-core';
 
 export interface TextEditorProps {
     position: Point;

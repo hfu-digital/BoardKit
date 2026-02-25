@@ -1,4 +1,4 @@
-import type { StrokeElement } from '@boardkit/core';
+import type { StrokeElement } from '@hfu.digital/boardkit-core';
 
 export function renderStroke(
     ctx: CanvasRenderingContext2D,

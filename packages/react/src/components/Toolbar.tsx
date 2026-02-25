@@ -1,5 +1,5 @@
 import React from 'react';
-import { TOOL_IDS } from '@boardkit/core';
+import { TOOL_IDS } from '@hfu.digital/boardkit-core';
 import { useTool } from '../hooks/useTool';
 
 export interface ToolbarProps {

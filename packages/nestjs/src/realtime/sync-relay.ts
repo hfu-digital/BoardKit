@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ServerMessage } from '@boardkit/core';
+import type { ServerMessage } from '@hfu.digital/boardkit-core';
 
 interface ClientEntry {
     socket: { emit: (event: string, data: any) => void };

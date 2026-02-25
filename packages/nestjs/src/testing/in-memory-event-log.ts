@@ -1,4 +1,4 @@
-import type { BoardEvent, BoardSnapshot } from '@boardkit/core';
+import type { BoardEvent, BoardSnapshot } from '@hfu.digital/boardkit-core';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
 
 let idCounter = 0;

@@ -1,5 +1,5 @@
 {
-    "name": "@boardkit/nestjs",
+    "name": "@hfu.digital/boardkit-nestjs",
     "version": "0.1.0",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -12,7 +12,7 @@
         "prepublishOnly": "npm run build"
     },
     "dependencies": {
-        "@boardkit/core": "workspace:*"
+        "@hfu.digital/boardkit-core": "workspace:*"
     },
     "peerDependencies": {
         "@nestjs/common": "^10.0.0 || ^11.0.0",
@@ -20,6 +20,10 @@
         "@nestjs/websockets": "^10.0.0 || ^11.0.0",
         "@nestjs/platform-socket.io": "^10.0.0 || ^11.0.0",
         "rxjs": "^7.0.0"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
     },
     "devDependencies": {
         "@nestjs/common": "^10.0.0",

@@ -1,4 +1,4 @@
-import type { ConnectorElement, Element, Point, Rect } from '@boardkit/core';
+import type { ConnectorElement, Element, Point, Rect } from '@hfu.digital/boardkit-core';
 
 function getAnchorPositionFromBounds(bounds: Rect, anchor: string): Point {
     switch (anchor) {

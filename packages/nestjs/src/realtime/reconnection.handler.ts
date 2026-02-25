@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ElementMutation } from '@boardkit/core';
+import type { ElementMutation } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
 
 @Injectable()

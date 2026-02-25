@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Participant, Point } from '@boardkit/core';
+import type { Participant, Point } from '@hfu.digital/boardkit-core';
 
 interface PresenceEntry {
     participant: Participant;

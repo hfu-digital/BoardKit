@@ -1,5 +1,5 @@
 import type { ViewportState } from './viewport';
-import type { GridConfig } from '@boardkit/core';
+import type { GridConfig } from '@hfu.digital/boardkit-core';
 
 export function renderGrid(
     ctx: CanvasRenderingContext2D,

@@ -1,4 +1,4 @@
-import type { StickyNoteElement } from '@boardkit/core';
+import type { StickyNoteElement } from '@hfu.digital/boardkit-core';
 
 export function renderStickyNote(
     ctx: CanvasRenderingContext2D,

@@ -4,7 +4,7 @@ import type {
     Element,
     BoardMember,
     ShareLink,
-} from '@boardkit/core';
+} from '@hfu.digital/boardkit-core';
 
 export interface CreateBoardInput {
     name: string;

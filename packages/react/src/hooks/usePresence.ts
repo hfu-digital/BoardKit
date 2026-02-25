@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Participant, CursorPosition } from '@boardkit/core';
+import type { Participant, CursorPosition } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 export interface UsePresenceResult {

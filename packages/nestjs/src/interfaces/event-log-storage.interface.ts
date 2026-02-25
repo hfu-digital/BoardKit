@@ -1,4 +1,4 @@
-import type { BoardEvent, BoardSnapshot } from '@boardkit/core';
+import type { BoardEvent, BoardSnapshot } from '@hfu.digital/boardkit-core';
 
 export abstract class EventLogStorage {
     abstract append(event: Omit<BoardEvent, 'id'>): Promise<BoardEvent>;

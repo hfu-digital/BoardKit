@@ -1,4 +1,4 @@
-import type { Point } from '@boardkit/core';
+import type { Point } from '@hfu.digital/boardkit-core';
 
 export type GestureTarget = 'tool' | 'viewport';
 export type GestureType = 'draw' | 'pan' | 'zoom' | 'secondary';

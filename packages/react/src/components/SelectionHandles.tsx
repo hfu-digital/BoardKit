@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Rect } from '@boardkit/core';
+import type { Rect } from '@hfu.digital/boardkit-core';
 
 export interface SelectionHandlesProps {
     bounds: Rect;

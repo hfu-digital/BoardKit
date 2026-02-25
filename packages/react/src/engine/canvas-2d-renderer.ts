@@ -1,6 +1,6 @@
-import type { Element, Rect } from '@boardkit/core';
-import type { CursorPosition } from '@boardkit/core';
-import { BoardRenderer, type RenderContext } from '@boardkit/core';
+import type { Element, Rect } from '@hfu.digital/boardkit-core';
+import type { CursorPosition } from '@hfu.digital/boardkit-core';
+import { BoardRenderer, type RenderContext } from '@hfu.digital/boardkit-core';
 import { renderStaticLayer } from './static-layer';
 import { renderInteractiveLayer } from './interactive-layer';
 

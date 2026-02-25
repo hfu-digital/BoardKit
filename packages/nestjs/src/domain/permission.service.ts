@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { ShareLink } from '@boardkit/core';
+import type { ShareLink } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
 
 const ROLE_HIERARCHY: Record<string, number> = {

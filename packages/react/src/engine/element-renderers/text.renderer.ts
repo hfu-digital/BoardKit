@@ -1,4 +1,4 @@
-import type { TextElement } from '@boardkit/core';
+import type { TextElement } from '@hfu.digital/boardkit-core';
 
 export function renderText(
     ctx: CanvasRenderingContext2D,

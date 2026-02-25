@@ -8,8 +8,8 @@ import type {
     StickyNoteElement,
     Point,
     Rect,
-} from '@boardkit/core';
-import type { Page } from '@boardkit/core';
+} from '@hfu.digital/boardkit-core';
+import type { Page } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
 
 export type ExportFormat = 'png' | 'pdf' | 'svg';

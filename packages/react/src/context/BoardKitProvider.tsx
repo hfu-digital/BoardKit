@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useMemo } from 'react';
-import { ToolRegistry } from '@boardkit/core';
+import { ToolRegistry } from '@hfu.digital/boardkit-core';
 import { BoardStore } from '../store/board-store';
 import { Canvas2DRenderer } from '../engine/canvas-2d-renderer';
 

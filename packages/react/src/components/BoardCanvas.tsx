@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import type { InputEvent as CoreInputEvent } from '@boardkit/core';
+import type { InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { zoomToPoint } from '../engine/viewport';

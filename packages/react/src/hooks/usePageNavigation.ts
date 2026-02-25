@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Page } from '@boardkit/core';
+import type { Page } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 export interface UsePageNavigationResult {
