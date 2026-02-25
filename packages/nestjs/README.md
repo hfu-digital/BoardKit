@@ -23,8 +23,9 @@ import { BoardModule } from '@hfu.digital/boardkit-nestjs';
 @Module({
     imports: [
         BoardModule.register({
-            boardStorage: new MyBoardStorage(),
+            storage: new MyBoardStorage(),
             assetStorage: new MyAssetStorage(),
+            eventLogStorage: new MyEventLogStorage(),
             authGuard: new MyAuthGuard(),
         }),
     ],
@@ -96,6 +97,7 @@ In-memory adapters are provided for unit testing without a database:
 import {
     InMemoryBoardStorage,
     InMemoryAssetStorage,
+    InMemoryEventLogStorage,
     MockAuthGuard,
 } from '@hfu.digital/boardkit-nestjs';
 ```

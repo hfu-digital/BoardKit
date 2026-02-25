@@ -27,13 +27,15 @@ import { Module } from '@nestjs/common';
 import { BoardModule } from '@hfu.digital/boardkit-nestjs';
 import { MyBoardStorage } from './my-board-storage';
 import { MyAssetStorage } from './my-asset-storage';
+import { MyEventLogStorage } from './my-event-log-storage';
 import { MyAuthGuard } from './my-auth-guard';
 
 @Module({
     imports: [
         BoardModule.register({
-            boardStorage: new MyBoardStorage(),
+            storage: new MyBoardStorage(),
             assetStorage: new MyAssetStorage(),
+            eventLogStorage: new MyEventLogStorage(),
             authGuard: new MyAuthGuard(),
         }),
     ],
@@ -44,14 +46,19 @@ export class AppModule {}
 ### Client (React)
 
 ```tsx
-import { BoardKitProvider, WhiteboardCanvas, useCollaboration } from '@hfu.digital/boardkit-react';
+import { BoardKitProvider, BoardCanvas, useCollaboration } from '@hfu.digital/boardkit-react';
 
 function App() {
     return (
         <BoardKitProvider config={{ apiUrl: '/api', wsUrl: 'http://localhost:3000' }}>
-            <WhiteboardCanvas boardId="my-board" />
+            <Board />
         </BoardKitProvider>
     );
+}
+
+function Board() {
+    useCollaboration('my-board');
+    return <BoardCanvas />;
 }
 ```
 
