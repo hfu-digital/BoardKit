@@ -17,7 +17,7 @@ bun add react react-dom socket.io-client
 ## Quick Start
 
 ```tsx
-import { BoardKitProvider, WhiteboardCanvas } from '@hfu.digital/boardkit-react';
+import { BoardKitProvider, BoardCanvas, useCollaboration } from '@hfu.digital/boardkit-react';
 
 function App() {
     return (
@@ -28,9 +28,14 @@ function App() {
                 authToken: 'your-jwt-token',
             }}
         >
-            <WhiteboardCanvas boardId="my-board" />
+            <Board />
         </BoardKitProvider>
     );
+}
+
+function Board() {
+    useCollaboration('my-board');
+    return <BoardCanvas />;
 }
 ```
 
@@ -103,6 +108,22 @@ Import images onto the canvas.
 ### `useErrorRecovery`
 
 Handle and recover from connection/sync errors.
+
+### `usePageNavigation`
+
+Multi-page navigation, creation, and reordering.
+
+### `usePresence`
+
+Participant list and cursor positions.
+
+### `useKeyboardShortcuts`
+
+Global keyboard shortcuts for common operations (Ctrl+Z undo, Ctrl+Y redo, Delete, etc.).
+
+### `useExport`
+
+Client-side PNG and server-side export.
 
 ## Store
 
