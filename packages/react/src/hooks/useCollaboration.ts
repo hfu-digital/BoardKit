@@ -24,8 +24,9 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
     useEffect(() => {
         if (!config.wsUrl) return;
 
-        const socket = io(config.wsUrl, {
-            path: '/board',
+        // `/board` is a Socket.IO namespace (server uses `@WebSocketGateway({ namespace: '/board' })`),
+        // not an HTTP path — it must be appended to the URL, leaving the default `/socket.io/` path.
+        const socket = io(`${config.wsUrl.replace(/\/$/, '')}/board`, {
             transports: ['websocket'],
             autoConnect: true,
             reconnection: true,
