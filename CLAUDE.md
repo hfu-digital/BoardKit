@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> For project vision, cross-project architecture, and global code style rules, see the root [CLAUDE.md](../CLAUDE.md).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build Commands
@@ -44,7 +46,7 @@ BoardKit is a collaborative whiteboard library organized as a Turborepo monorepo
 Pure TypeScript, no runtime dependencies. Contains:
 - **Types**: `Element` discriminated union (stroke | shape | text | image | stickyNote | group | connector), `Board`, `Page`, `Participant`, WebSocket protocol messages (`ClientMessage`/`ServerMessage`)
 - **Scene graph**: Immutable `SceneState` = `Map<string, Element>` + `elementOrder: string[]`. All mutations (`addElement`, `removeElement`, `updateElement`) return new state objects.
-- **Tools**: Abstract `Tool` class with state machine (`idle → active → finishing → idle`). Each tool processes `InputEvent` and returns `ToolResult` containing mutations and preview elements. 9 tools registered via `ToolRegistry.createDefault()`.
+- **Tools**: Abstract `Tool` class with state machine (`idle → active → finishing → idle`). Each tool processes `InputEvent` and returns `ToolResult` containing mutations and preview elements. 8 tools registered via `ToolRegistry.createDefault()`. The `HAND` tool ID exists as a constant but viewport panning is implemented at the input-pipeline layer (space+drag), not as a registered Tool subclass.
 - **Operations**: LWW (Last-Writer-Wins) merge for collaboration conflicts (`mergeElement` compares `updatedAt`, remote wins on tie). History with undo/redo stack. Clipboard serialization/deserialization.
 - **Grid/Alignment**: `snapToGrid()`, `findAlignmentGuides()` for element snapping
 
@@ -92,5 +94,5 @@ PointerEvent → InputPipeline → GestureRecognizer → Tool.onPointerX()
 | group | (placeholder) | — |
 | — | SelectTool | `SELECT` |
 | — | EraserTool | `ERASER` |
-| — | HandTool (viewport pan) | `HAND` |
 | — | LaserTool (preview-only) | `LASER` |
+| — | (no Tool class — input pipeline pan) | `HAND` |

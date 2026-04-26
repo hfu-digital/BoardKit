@@ -1,0 +1,15 @@
+{
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Write|Edit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "FILEPATH=$(echo \"$TOOL_INPUT\" | grep -oE 'packages/(backend|nestjs|core)/src/[^ \"]*' | head -1); if [ -n \"$FILEPATH\" ] && ! echo \"$FILEPATH\" | grep -q 'adapters/'; then if echo \"$TOOL_INPUT\" | grep -qE '(from\\s+[\"\\x27]@prisma/client|import.*PrismaClient)'; then echo 'BLOCK: @prisma/client imports are not allowed in core package code (only in adapters/). Kit libraries use hexagonal architecture — define abstract storage interfaces in interfaces/ and implement Prisma adapters in adapters/.' >&2; exit 2; fi; fi"
+                    }
+                ]
+            }
+        ]
+    }
+}
