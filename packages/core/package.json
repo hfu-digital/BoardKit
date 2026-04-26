@@ -1,6 +1,6 @@
 {
     "name": "@hfu.digital/boardkit-core",
-    "version": "0.1.0",
+    "version": "2026.04.1",
     "description": "Zero-dependency shared kernel for BoardKit — types, scene graph, tools, and collaboration protocol",
     "license": "MIT",
     "repository": {

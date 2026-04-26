@@ -10,7 +10,20 @@ permissions:
     id-token: write
 
 jobs:
+    validate-tag:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Validate CalVer tag (vYYYY.MM.N)
+              run: |
+                  TAG="${GITHUB_REF#refs/tags/}"
+                  if [[ ! "$TAG" =~ ^v[0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]+$ ]]; then
+                      echo "::error::Tag '$TAG' does not match CalVer pattern vYYYY.MM.N (e.g. v2026.04.1)"
+                      exit 1
+                  fi
+                  echo "Tag '$TAG' is a valid CalVer tag."
+
     build:
+        needs: validate-tag
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
