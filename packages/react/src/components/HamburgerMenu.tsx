@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Menu, Sun, Moon, Monitor, Download, Settings, BookOpen, ChevronRight } from 'lucide-react';
-import { useTheme } from '../hooks/useTheme';
+import { Menu, Download, Settings, BookOpen, ChevronRight } from 'lucide-react';
 
 export interface HamburgerMenuProps {
     className?: string;
@@ -13,15 +12,14 @@ export interface HamburgerMenuProps {
 }
 
 /**
- * Top-left dropdown menu (Excalidraw's "hamburger") with theme picker,
- * export, help, and settings. The button shows the theme icon when a
- * non-default theme is active so users can see at a glance what mode
- * they're in.
+ * Top-left dropdown menu (Excalidraw's "hamburger") with export, help, and
+ * settings entries. The theme picker was removed in 2026.04.9 — the canvas
+ * follows the consumer app's theme via [data-bk-theme] (and BoardKit's
+ * useTheme hook is still exported for apps that want their own picker).
  */
 export function HamburgerMenu({ className, onExportClick, onHelpClick, onSettingsClick }: HamburgerMenuProps) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
-    const { theme, setTheme } = useTheme();
 
     // Close on outside click / Esc.
     useEffect(() => {
@@ -64,44 +62,6 @@ export function HamburgerMenu({ className, onExportClick, onHelpClick, onSetting
                     {onSettingsClick && (
                         <Item icon={<Settings size={14} />} label="Settings" onClick={() => { onSettingsClick(); setOpen(false); }} />
                     )}
-                    {(onExportClick || onHelpClick || onSettingsClick) && <div className="bk-context-divider" aria-hidden="true" />}
-                    <div className="bk-context-item" style={{ display: 'block' }}>
-                        <div style={{ marginBottom: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--bk-text-muted)' }}>
-                            Theme
-                        </div>
-                        <div className="bk-control-row" role="radiogroup" aria-label="Theme">
-                            <button
-                                type="button"
-                                className="bk-control-btn"
-                                aria-pressed={theme === 'light'}
-                                data-selected={theme === 'light'}
-                                onClick={() => setTheme('light')}
-                                title="Light"
-                            >
-                                <Sun size={14} />
-                            </button>
-                            <button
-                                type="button"
-                                className="bk-control-btn"
-                                aria-pressed={theme === 'dark'}
-                                data-selected={theme === 'dark'}
-                                onClick={() => setTheme('dark')}
-                                title="Dark"
-                            >
-                                <Moon size={14} />
-                            </button>
-                            <button
-                                type="button"
-                                className="bk-control-btn"
-                                aria-pressed={theme === 'system'}
-                                data-selected={theme === 'system'}
-                                onClick={() => setTheme('system')}
-                                title="Follow system"
-                            >
-                                <Monitor size={14} />
-                            </button>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>
