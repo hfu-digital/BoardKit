@@ -1,6 +1,6 @@
 import type { Element, ElementType } from '../types/elements';
 
-const VALID_TYPES: ElementType[] = ['stroke', 'shape', 'text', 'image', 'stickyNote', 'group', 'connector'];
+const VALID_TYPES: ElementType[] = ['stroke', 'shape', 'linear', 'text', 'image', 'group'];
 
 export interface ValidationResult {
     valid: boolean;
@@ -44,12 +44,33 @@ export function validateElement(data: unknown): ValidationResult {
                 if (!d.bounds || typeof d.bounds !== 'object') errors.push('Stroke must have a bounds object');
                 break;
             case 'shape':
-                if (!d.shapeType || typeof d.shapeType !== 'string') errors.push('Shape must have a shapeType');
+                if (
+                    typeof d.shapeType !== 'string' ||
+                    !['rectangle', 'diamond', 'ellipse'].includes(d.shapeType)
+                ) {
+                    errors.push("Shape must have shapeType 'rectangle' | 'diamond' | 'ellipse'");
+                }
                 if (!d.position || typeof d.position !== 'object') errors.push('Shape must have a position');
                 if (!d.size || typeof d.size !== 'object') errors.push('Shape must have a size');
                 if (typeof d.rotation !== 'number') errors.push('Shape must have a rotation number');
                 if (!d.style || typeof d.style !== 'object') errors.push('Shape must have a style object');
                 if (!d.bounds || typeof d.bounds !== 'object') errors.push('Shape must have a bounds object');
+                break;
+            case 'linear':
+                if (
+                    typeof d.linearType !== 'string' ||
+                    !['line', 'arrow'].includes(d.linearType)
+                ) {
+                    errors.push("Linear must have linearType 'line' | 'arrow'");
+                }
+                if (!Array.isArray(d.points) || d.points.length < 2) {
+                    errors.push('Linear must have a points array with at least 2 entries');
+                }
+                if (typeof d.rotation !== 'number') errors.push('Linear must have a rotation number');
+                if (!d.style || typeof d.style !== 'object') errors.push('Linear must have a style object');
+                if (typeof d.arrowStart !== 'boolean') errors.push('Linear must have arrowStart boolean');
+                if (typeof d.arrowEnd !== 'boolean') errors.push('Linear must have arrowEnd boolean');
+                if (!d.bounds || typeof d.bounds !== 'object') errors.push('Linear must have a bounds object');
                 break;
             case 'text':
                 if (typeof d.content !== 'string') errors.push('Text must have a content string');
@@ -67,26 +88,9 @@ export function validateElement(data: unknown): ValidationResult {
                 if (typeof d.rotation !== 'number') errors.push('Image must have a rotation number');
                 if (!d.bounds || typeof d.bounds !== 'object') errors.push('Image must have a bounds object');
                 break;
-            case 'stickyNote':
-                if (typeof d.content !== 'string') errors.push('StickyNote must have a content string');
-                if (!d.position || typeof d.position !== 'object') errors.push('StickyNote must have a position');
-                if (!d.size || typeof d.size !== 'object') errors.push('StickyNote must have a size');
-                if (typeof d.color !== 'string') errors.push('StickyNote must have a color string');
-                if (!d.style || typeof d.style !== 'object') errors.push('StickyNote must have a style object');
-                if (!d.bounds || typeof d.bounds !== 'object') errors.push('StickyNote must have a bounds object');
-                break;
             case 'group':
                 if (!Array.isArray(d.childIds)) errors.push('Group must have a childIds array');
                 if (!d.bounds || typeof d.bounds !== 'object') errors.push('Group must have a bounds object');
-                break;
-            case 'connector':
-                if (typeof d.startElementId !== 'string') errors.push('Connector must have a startElementId string');
-                if (typeof d.endElementId !== 'string') errors.push('Connector must have an endElementId string');
-                if (typeof d.startAnchor !== 'string') errors.push('Connector must have a startAnchor');
-                if (typeof d.endAnchor !== 'string') errors.push('Connector must have an endAnchor');
-                if (!Array.isArray(d.waypoints)) errors.push('Connector must have a waypoints array');
-                if (!d.style || typeof d.style !== 'object') errors.push('Connector must have a style object');
-                if (!d.bounds || typeof d.bounds !== 'object') errors.push('Connector must have a bounds object');
                 break;
         }
     }

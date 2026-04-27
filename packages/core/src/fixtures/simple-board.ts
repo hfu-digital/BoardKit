@@ -5,7 +5,7 @@ import type {
     ShapeElement,
     TextElement,
 } from '../types/elements';
-import { DEFAULT_STROKE_STYLE, DEFAULT_FILL_STYLE, DEFAULT_TEXT_STYLE } from '../constants';
+import { DEFAULT_STROKE_STYLE, DEFAULT_FILL_STYLE, DEFAULT_TEXT_STYLE, DEFAULT_SHAPE_STYLE } from '../constants';
 import type { BoardFixture } from './empty-board';
 
 export function createSimpleBoard(): BoardFixture {
@@ -73,13 +73,14 @@ export function createSimpleBoard(): BoardFixture {
             createdAt: now,
             updatedAt: now,
             data: {
-                shapeType: (['rectangle', 'ellipse', 'triangle'] as const)[i],
+                shapeType: (['rectangle', 'ellipse', 'diamond'] as const)[i],
                 position: { x: 300 + i * 120, y: 100 },
                 size: { width: 100, height: 80 },
                 rotation: 0,
                 style: {
-                    stroke: { ...DEFAULT_STROKE_STYLE },
+                    ...DEFAULT_SHAPE_STYLE,
                     fill: { ...DEFAULT_FILL_STYLE, type: 'solid', color: '#4A90D9' },
+                    seed: 1000 + i,
                 },
                 bounds: {
                     x: 300 + i * 120,

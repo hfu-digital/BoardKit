@@ -1,8 +1,6 @@
 import type { StrokeStyle, ShapeStyle, TextStyle } from './styles';
 
-export type AnchorPosition = 'top' | 'right' | 'bottom' | 'left' | 'center';
-
-export type ElementType = 'stroke' | 'shape' | 'text' | 'image' | 'stickyNote' | 'group' | 'connector';
+export type ElementType = 'stroke' | 'shape' | 'linear' | 'text' | 'image' | 'group';
 
 export interface Point {
     x: number;
@@ -27,6 +25,11 @@ export interface ElementBase {
     updatedAt: string;
 }
 
+/**
+ * Freeform pen / pressure-sensitive stroke. Always rendered as smooth
+ * vector — the Rough.js sketchy treatment doesn't apply to freedraw, since
+ * it's already an organic stroke.
+ */
 export interface StrokeElement extends ElementBase {
     type: 'stroke';
     data: {
@@ -37,14 +40,40 @@ export interface StrokeElement extends ElementBase {
     };
 }
 
+/**
+ * Closed geometric shape. The three sub-types (rectangle, diamond, ellipse)
+ * share the bounding-box drag interaction, so they're modelled as one
+ * element type with a `shapeType` discriminator instead of three.
+ */
 export interface ShapeElement extends ElementBase {
     type: 'shape';
     data: {
-        shapeType: 'rectangle' | 'ellipse' | 'line' | 'arrow' | 'triangle';
+        shapeType: 'rectangle' | 'diamond' | 'ellipse';
         position: Point;
         size: { width: number; height: number };
         rotation: number;
         style: ShapeStyle;
+        bounds: Rect;
+    };
+}
+
+/**
+ * Open polyline — used for both `line` and `arrow`. Excalidraw treats these
+ * the same internally; only the optional arrowheads differ. `points` always
+ * has at least 2 entries (start and end). Multi-segment polylines stay
+ * supported for future polyline tools without breaking the schema.
+ */
+export interface LinearElement extends ElementBase {
+    type: 'linear';
+    data: {
+        linearType: 'line' | 'arrow';
+        points: Point[];
+        rotation: number;
+        style: StrokeStyle;
+        roughness: 0 | 1 | 2;
+        seed: number;
+        arrowStart: boolean;
+        arrowEnd: boolean;
         bounds: Rect;
     };
 }
@@ -73,18 +102,6 @@ export interface ImageElement extends ElementBase {
     };
 }
 
-export interface StickyNoteElement extends ElementBase {
-    type: 'stickyNote';
-    data: {
-        content: string;
-        position: Point;
-        size: { width: number; height: number };
-        color: string;
-        style: TextStyle;
-        bounds: Rect;
-    };
-}
-
 export interface GroupElement extends ElementBase {
     type: 'group';
     data: {
@@ -93,26 +110,10 @@ export interface GroupElement extends ElementBase {
     };
 }
 
-export interface ConnectorElement extends ElementBase {
-    type: 'connector';
-    data: {
-        startElementId: string;
-        endElementId: string;
-        startAnchor: AnchorPosition;
-        endAnchor: AnchorPosition;
-        waypoints: Point[];
-        style: StrokeStyle;
-        arrowStart: boolean;
-        arrowEnd: boolean;
-        bounds: Rect;
-    };
-}
-
 export type Element =
     | StrokeElement
     | ShapeElement
+    | LinearElement
     | TextElement
     | ImageElement
-    | StickyNoteElement
-    | GroupElement
-    | ConnectorElement;
+    | GroupElement;

@@ -1,6 +1,6 @@
 import type { Point, ShapeElement, Rect } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
-import { DEFAULT_STROKE_STYLE, DEFAULT_FILL_STYLE } from '../constants';
+import { DEFAULT_SHAPE_STYLE, generateRoughSeed } from '../constants';
 import { Tool, type InputEvent, type ToolResult, type ToolState } from './tool.interface';
 
 let shapeIdCounter = 0;
@@ -8,21 +8,22 @@ function generateShapeId(): string {
     return `shape-${++shapeIdCounter}-${Date.now()}`;
 }
 
-export type ShapeType = 'rectangle' | 'ellipse' | 'line' | 'arrow' | 'triangle';
-
-export class ShapeTool extends Tool {
-    readonly id = 'shape';
-    readonly name = 'Shape';
+/**
+ * Shared drag-to-create rectangle/diamond/ellipse behavior. Each concrete
+ * subclass picks its `shapeType` so the tool registry has distinct ids
+ * and the toolbar can show distinct icons. Behavior is identical:
+ * - Pointer down captures origin
+ * - Pointer move previews the shape with the current bounding box
+ * - Holding shift constrains to a square (1:1 aspect ratio)
+ * - Pointer up emits a `create` mutation with a fresh seed for Rough.js
+ */
+export abstract class RectShapeTool extends Tool {
+    abstract readonly shapeType: 'rectangle' | 'diamond' | 'ellipse';
     state: ToolState = 'idle';
 
     private startPos: Point | null = null;
     private currentPageId = '';
     private createdBy = '';
-    private shapeType: ShapeType = 'rectangle';
-
-    setShapeType(type: ShapeType): void {
-        this.shapeType = type;
-    }
 
     setPageId(pageId: string): void {
         this.currentPageId = pageId;
@@ -42,18 +43,8 @@ export class ShapeTool extends Tool {
         if (this.state !== 'active' || !this.startPos) {
             return { cursor: 'crosshair', state: this.state };
         }
-
-        const shape = this.buildShape(
-            this.startPos,
-            event.position,
-            event.modifiers.shift,
-        );
-
-        return {
-            preview: [shape],
-            cursor: 'crosshair',
-            state: this.state,
-        };
+        const shape = this.buildShape(this.startPos, event.position, event.modifiers.shift);
+        return { preview: [shape], cursor: 'crosshair', state: this.state };
     }
 
     onPointerUp(event: InputEvent, _scene: SceneState): ToolResult {
@@ -61,15 +52,16 @@ export class ShapeTool extends Tool {
             this.state = 'idle';
             return { state: 'idle' };
         }
-
         this.state = 'idle';
         const elementId = generateShapeId();
-        const shape = this.buildShape(
-            this.startPos,
-            event.position,
-            event.modifiers.shift,
-        );
+        const shape = this.buildShape(this.startPos, event.position, event.modifiers.shift);
         shape.id = elementId;
+
+        // Drop zero-size shapes (a single click without drag).
+        if (shape.data.size.width < 1 && shape.data.size.height < 1) {
+            this.startPos = null;
+            return { state: 'idle' };
+        }
 
         const mutations = [
             {
@@ -80,7 +72,6 @@ export class ShapeTool extends Tool {
                 timestamp: Date.now(),
             },
         ];
-
         this.startPos = null;
         return { mutations, state: 'idle' };
     }
@@ -91,26 +82,19 @@ export class ShapeTool extends Tool {
         return { state: 'idle' };
     }
 
-    private buildShape(
-        start: Point,
-        end: Point,
-        constrain: boolean,
-    ): ShapeElement {
+    private buildShape(start: Point, end: Point, constrain: boolean): ShapeElement {
         let width = end.x - start.x;
         let height = end.y - start.y;
-
         if (constrain) {
             const size = Math.max(Math.abs(width), Math.abs(height));
-            width = Math.sign(width) * size;
-            height = Math.sign(height) * size;
+            width = (Math.sign(width) || 1) * size;
+            height = (Math.sign(height) || 1) * size;
         }
-
         const x = width >= 0 ? start.x : start.x + width;
         const y = height >= 0 ? start.y : start.y + height;
         const absW = Math.abs(width);
         const absH = Math.abs(height);
         const now = new Date().toISOString();
-
         const bounds: Rect = { x, y, width: absW, height: absH };
 
         return {
@@ -126,10 +110,7 @@ export class ShapeTool extends Tool {
                 position: { x, y },
                 size: { width: absW, height: absH },
                 rotation: 0,
-                style: {
-                    stroke: { ...DEFAULT_STROKE_STYLE },
-                    fill: { ...DEFAULT_FILL_STYLE },
-                },
+                style: { ...DEFAULT_SHAPE_STYLE, seed: generateRoughSeed() },
                 bounds,
             },
         };

@@ -89,16 +89,18 @@ export function Minimap({ width = 200, height = 150, className }: MinimapProps) 
                     ctx.fillRect(mx, my, Math.max(mw, 1), Math.max(mh, 1));
                     break;
                 case 'shape':
-                    ctx.fillStyle = 'rgba(100, 100, 200, 0.5)';
+                    ctx.fillStyle = el.data.style.fill.type === 'none'
+                        ? 'rgba(100, 100, 200, 0.5)'
+                        : el.data.style.fill.color;
                     ctx.fillRect(mx, my, mw, mh);
+                    break;
+                case 'linear':
+                    ctx.fillStyle = el.data.style.color;
+                    ctx.fillRect(mx, my, Math.max(mw, 1), Math.max(mh, 1));
                     break;
                 case 'text':
                     ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
                     ctx.fillRect(mx, my, mw, Math.max(mh, 2));
-                    break;
-                case 'stickyNote':
-                    ctx.fillStyle = el.data.color ?? '#FFEAA7';
-                    ctx.fillRect(mx, my, mw, mh);
                     break;
                 case 'image':
                     ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';

@@ -3,21 +3,24 @@ import { ToolRegistry } from '../../src/tools/tool-registry';
 import { TOOL_IDS } from '../../src/constants';
 
 describe('ToolRegistry', () => {
-    it('createDefault registers 8 tools', () => {
+    it('createDefault registers 11 tools (Hand panning is handled in the input pipeline)', () => {
         const registry = ToolRegistry.createDefault();
-        expect(registry.getAll().length).toBe(8);
+        expect(registry.getAll().length).toBe(11);
     });
 
-    it('can retrieve each default tool by id', () => {
+    it('can retrieve each Excalidraw-aligned tool by id', () => {
         const registry = ToolRegistry.createDefault();
         const expectedIds = [
-            TOOL_IDS.PEN,
-            TOOL_IDS.SHAPE,
             TOOL_IDS.SELECT,
-            TOOL_IDS.ERASER,
+            TOOL_IDS.RECTANGLE,
+            TOOL_IDS.DIAMOND,
+            TOOL_IDS.ELLIPSE,
+            TOOL_IDS.ARROW,
+            TOOL_IDS.LINE,
+            TOOL_IDS.PEN,
             TOOL_IDS.TEXT,
-            TOOL_IDS.STICKY_NOTE,
-            TOOL_IDS.CONNECTOR,
+            TOOL_IDS.IMAGE,
+            TOOL_IDS.ERASER,
             TOOL_IDS.LASER,
         ];
         for (const id of expectedIds) {
@@ -37,6 +40,6 @@ describe('ToolRegistry', () => {
         const fakeTool = { ...penBefore, name: 'FakePen' };
         registry.register(fakeTool as any);
         expect(registry.get(TOOL_IDS.PEN)!.name).toBe('FakePen');
-        expect(registry.getAll().length).toBe(8);
+        expect(registry.getAll().length).toBe(11);
     });
 });

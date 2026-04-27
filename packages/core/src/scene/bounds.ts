@@ -1,22 +1,9 @@
 import type { Element, Point, Rect } from '../types/elements';
 
 export function calculateBounds(element: Element): Rect {
-    switch (element.type) {
-        case 'stroke':
-            return element.data.bounds;
-        case 'shape':
-            return element.data.bounds;
-        case 'text':
-            return element.data.bounds;
-        case 'image':
-            return element.data.bounds;
-        case 'stickyNote':
-            return element.data.bounds;
-        case 'group':
-            return element.data.bounds;
-        case 'connector':
-            return element.data.bounds;
-    }
+    // All current element data shapes carry a precomputed `bounds` field —
+    // tools are responsible for keeping it in sync with their geometry.
+    return element.data.bounds;
 }
 
 export function boundsIntersect(a: Rect, b: Rect): boolean {
