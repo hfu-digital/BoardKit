@@ -26,3 +26,7 @@ export { BottomControls } from './BottomControls';
 export type { BottomControlsProps } from './BottomControls';
 export { ContextMenu } from './ContextMenu';
 export type { ContextMenuProps } from './ContextMenu';
+export { LibraryPanel } from './LibraryPanel';
+export type { LibraryPanelProps } from './LibraryPanel';
+export { OnboardingTour } from './OnboardingTour';
+export type { OnboardingTourProps } from './OnboardingTour';

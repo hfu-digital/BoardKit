@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { addElement } from '@hfu.digital/boardkit-core';
-import type { ImageElement } from '@hfu.digital/boardkit-core';
+import type { ImageElement, ElementMutation } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
 let imageIdCounter = 0;
@@ -11,6 +11,8 @@ function generateImageId(): string {
 export interface UseImageImportResult {
     importImage: (file: File) => Promise<void>;
     importFromUrl: (url: string) => Promise<void>;
+    /** Programmatically open the OS file picker. Used by the Image tool button. */
+    openFilePicker: () => void;
     isDragging: boolean;
     isUploading: boolean;
 }
@@ -61,6 +63,16 @@ export function useImageImport(boardId: string): UseImageImportResult {
             };
 
             store.updateScene((scene) => addElement(scene, element));
+            // Same outbound-queue pattern tools use; without this the image
+            // appears locally but never persists or syncs to other clients.
+            const mutation: ElementMutation = {
+                type: 'create',
+                elementId,
+                pageId,
+                data: element,
+                timestamp: Date.now(),
+            };
+            store.enqueueOutboundMutations([mutation]);
         },
         [store],
     );
@@ -164,6 +176,57 @@ export function useImageImport(boardId: string): UseImageImportResult {
         [createImageElement, loadImageDimensions],
     );
 
+    // Hidden file input lives in document.body; openFilePicker() triggers it.
+    // We append once and reuse — DOM churn would lose mid-flight selections.
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    useEffect(() => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        input.addEventListener('change', () => {
+            const file = input.files?.[0];
+            if (file) importImage(file);
+            input.value = '';
+        });
+        document.body.appendChild(input);
+        fileInputRef.current = input;
+        return () => {
+            input.remove();
+            fileInputRef.current = null;
+        };
+    }, [importImage]);
+
+    const openFilePicker = useCallback(() => {
+        fileInputRef.current?.click();
+    }, []);
+
+    // Paste handler for clipboard images. Browsers expose pasted images on
+    // ClipboardEvent.clipboardData.items; filter to image MIME types and
+    // skip if focus is inside a text editor (avoid hijacking text paste).
+    useEffect(() => {
+        const onPaste = (e: ClipboardEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                return;
+            }
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of Array.from(items)) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        importImage(file);
+                        break;
+                    }
+                }
+            }
+        };
+        window.addEventListener('paste', onPaste);
+        return () => window.removeEventListener('paste', onPaste);
+    }, [importImage]);
+
     // Set up drag & drop listeners
     useEffect(() => {
         let dragCounter = 0;
@@ -221,5 +284,5 @@ export function useImageImport(boardId: string): UseImageImportResult {
         };
     }, [importImage]);
 
-    return { importImage, importFromUrl, isDragging, isUploading };
+    return { importImage, importFromUrl, openFilePicker, isDragging, isUploading };
 }

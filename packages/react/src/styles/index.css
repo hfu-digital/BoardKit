@@ -298,3 +298,140 @@
     background: var(--bk-border);
     margin: 4px 0;
 }
+
+/* Library slide-in panel anchored top-right by the consumer. Roughly the
+   same look as the properties panel for visual cohesion. */
+.bk-library-panel {
+    background: var(--bk-bg-surface);
+    border: 1px solid var(--bk-border);
+    border-radius: var(--bk-radius-pill);
+    box-shadow: var(--bk-shadow-md);
+    color: var(--bk-text-primary);
+    font-family: var(--bk-font-ui);
+    width: 240px;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+    padding: var(--bk-spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--bk-spacing-md);
+}
+.bk-library-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.bk-library-import {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bk-spacing-sm);
+    padding: 8px 10px;
+    border: 1px dashed var(--bk-border-strong);
+    border-radius: var(--bk-radius-sm);
+    cursor: pointer;
+    color: var(--bk-text-secondary);
+    font-size: 12px;
+    transition: background-color 80ms ease, border-color 80ms ease;
+}
+.bk-library-import:hover {
+    background: var(--bk-bg-surface-hover);
+    border-color: var(--bk-accent);
+    color: var(--bk-text-primary);
+}
+.bk-library-section { display: flex; flex-direction: column; gap: var(--bk-spacing-xs); }
+.bk-library-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bk-text-muted);
+}
+.bk-library-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--bk-spacing-xs);
+}
+.bk-library-item {
+    background: var(--bk-bg-surface-hover);
+    border: 1px solid var(--bk-border);
+    border-radius: var(--bk-radius-sm);
+    padding: 16px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--bk-text-primary);
+    text-align: center;
+    transition: background-color 80ms ease, border-color 80ms ease;
+}
+.bk-library-item:hover {
+    background: var(--bk-bg-surface-active);
+    border-color: var(--bk-accent);
+}
+
+/* Onboarding overlay — full-viewport dim with a centered card. */
+.bk-onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--bk-z-modal);
+    font-family: var(--bk-font-ui);
+}
+.bk-onboarding-dialog {
+    background: var(--bk-bg-surface);
+    color: var(--bk-text-primary);
+    border-radius: var(--bk-radius-pill);
+    box-shadow: var(--bk-shadow-lg);
+    padding: 24px;
+    max-width: 420px;
+    width: calc(100% - 32px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--bk-spacing-md);
+}
+.bk-onboarding-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+.bk-onboarding-body {
+    font-size: 14px;
+    color: var(--bk-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+.bk-onboarding-shortcut {
+    font-family: var(--bk-font-code);
+    font-size: 12px;
+    color: var(--bk-accent);
+    background: var(--bk-bg-surface-hover);
+    padding: 6px 10px;
+    border-radius: var(--bk-radius-xs);
+    margin: 0;
+    align-self: flex-start;
+}
+.bk-onboarding-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+.bk-onboarding-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--bk-border-strong);
+    transition: background-color 100ms ease, transform 100ms ease;
+}
+.bk-onboarding-dot[data-active='true'] {
+    background: var(--bk-accent);
+    transform: scale(1.2);
+}
+.bk-onboarding-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--bk-spacing-sm);
+    margin-top: var(--bk-spacing-sm);
+}

@@ -4,6 +4,7 @@ import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { zoomToPoint } from '../engine/viewport';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useImageImport } from '../hooks/useImageImport';
 
 export interface BoardCanvasProps {
     boardId: string;
@@ -30,6 +31,19 @@ export function BoardCanvas({
     const { store, renderer, toolRegistry } = useBoardKit();
 
     useKeyboardShortcuts();
+    // Hosted inside BoardCanvas so drag-drop + paste + the file picker work
+    // without the consumer wiring useImageImport themselves. When the user
+    // selects the Image tool, we open the file picker and snap back to Select
+    // so the toolbar doesn't stay in a weird "armed" state.
+    const { openFilePicker } = useImageImport(boardId);
+    useEffect(() => {
+        return store.subscribe('tool', () => {
+            if (store.getState().activeTool === 'image') {
+                openFilePicker();
+                store.setActiveTool('select');
+            }
+        });
+    }, [store, openFilePicker]);
 
     // Initialize renderer
     useEffect(() => {
