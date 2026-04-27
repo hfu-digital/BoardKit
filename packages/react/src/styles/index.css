@@ -1,0 +1,115 @@
+@import './tokens.css';
+
+/* @font-face is injected at runtime by ./fonts.ts so the woff2 binaries emit
+   as separate hashed assets instead of getting base64-inlined into this CSS
+   (vite library mode would otherwise bloat boardkit.css by ~150 KB). */
+
+/* Reusable pill-bar primitive. Used by Toolbar, BottomControls, PropertiesPanel.
+   The bar itself floats — positioning is the consumer's job (absolute / fixed),
+   we only provide visual treatment. */
+.bk-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bk-spacing-xs);
+    padding: var(--bk-spacing-sm);
+    background: var(--bk-bg-surface);
+    border: 1px solid var(--bk-border);
+    border-radius: var(--bk-radius-pill);
+    box-shadow: var(--bk-shadow-md);
+    color: var(--bk-text-primary);
+    font-family: var(--bk-font-ui);
+    user-select: none;
+}
+
+.bk-pill--vertical {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.bk-icon-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--bk-radius-sm);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bk-text-secondary);
+    cursor: pointer;
+    transition: background-color 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+
+.bk-icon-btn:hover {
+    background: var(--bk-bg-surface-hover);
+    color: var(--bk-text-primary);
+}
+
+.bk-icon-btn:focus-visible {
+    outline: 2px solid var(--bk-accent);
+    outline-offset: 1px;
+}
+
+.bk-icon-btn[aria-pressed='true'],
+.bk-icon-btn[data-active='true'] {
+    background: var(--bk-bg-surface-active);
+    color: var(--bk-accent);
+}
+
+.bk-icon-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.bk-icon-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.bk-divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--bk-border);
+    margin: 4px var(--bk-spacing-xs);
+}
+
+.bk-divider--horizontal {
+    width: auto;
+    height: 1px;
+    margin: var(--bk-spacing-xs) 0;
+}
+
+.bk-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.bk-tooltip {
+    position: absolute;
+    background: var(--bk-text-primary);
+    color: var(--bk-bg-surface);
+    padding: 4px 8px;
+    border-radius: var(--bk-radius-xs);
+    font-family: var(--bk-font-ui);
+    font-size: 12px;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: var(--bk-shadow-sm);
+    z-index: var(--bk-z-tooltip);
+}
+
+.bk-shortcut {
+    margin-left: 6px;
+    opacity: 0.65;
+    font-family: var(--bk-font-code);
+    font-size: 11px;
+}

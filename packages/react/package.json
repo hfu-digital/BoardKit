@@ -9,17 +9,19 @@
         "directory": "packages/react"
     },
     "keywords": ["whiteboard", "react", "canvas", "collaboration", "real-time", "boardkit"],
-    "sideEffects": false,
+    "sideEffects": ["**/*.css", "**/styles/fonts.ts", "**/styles/fonts.js"],
     "main": "dist/index.js",
     "module": "dist/index.es.js",
     "types": "dist/index.d.ts",
+    "style": "dist/boardkit.css",
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.es.js",
             "require": "./dist/index.js",
             "default": "./dist/index.js"
-        }
+        },
+        "./styles.css": "./dist/boardkit.css"
     },
     "files": ["dist"],
     "engines": {
@@ -35,12 +37,14 @@
         "prepublishOnly": "npm run build"
     },
     "dependencies": {
-        "@hfu.digital/boardkit-core": "workspace:*"
+        "@hfu.digital/boardkit-core": "workspace:*",
+        "roughjs": "^4.6.6"
     },
     "peerDependencies": {
         "react": "^18.0.0 || ^19.0.0",
         "react-dom": "^18.0.0 || ^19.0.0",
-        "socket.io-client": "^4.0.0"
+        "socket.io-client": "^4.0.0",
+        "lucide-react": "^0.400.0"
     },
     "publishConfig": {
         "access": "public",
@@ -56,6 +60,8 @@
         "vite-plugin-dts": "^3.0.0",
         "typescript": "^5.0.0",
         "socket.io-client": "^4.0.0",
-        "vitest": "^3.0.0"
+        "vitest": "^3.0.0",
+        "lucide-react": "^0.400.0",
+        "roughjs": "^4.6.6"
     }
 }

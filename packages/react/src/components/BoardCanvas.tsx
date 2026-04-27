@@ -102,10 +102,27 @@ export function BoardCanvas({
                                         m.elementId,
                                     ],
                                 };
+                            } else if (m.type === 'update' && m.data) {
+                                const existing = s.elements.get(m.elementId);
+                                if (!existing) continue;
+                                const elements = new Map(s.elements);
+                                elements.set(m.elementId, { ...existing, ...(m.data as any) });
+                                s = { elements, elementOrder: s.elementOrder };
+                            } else if (m.type === 'delete') {
+                                const elements = new Map(s.elements);
+                                elements.delete(m.elementId);
+                                s = {
+                                    elements,
+                                    elementOrder: s.elementOrder.filter((id) => id !== m.elementId),
+                                };
                             }
                         }
                         return s;
                     });
+                    // Enqueue for transmission. The useCollaboration hook subscribes to
+                    // the 'outbound' slice and flushes the queue with debouncing — without
+                    // this enqueue, mutations stay local and the board never persists.
+                    store.enqueueOutboundMutations(result.mutations);
                 }
                 if (result.cursor) {
                     canvas.style.cursor = result.cursor;
