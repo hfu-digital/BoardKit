@@ -435,3 +435,10 @@
     gap: var(--bk-spacing-sm);
     margin-top: var(--bk-spacing-sm);
 }
+
+/* Hamburger menu — relative wrapper around the trigger button so the popover
+   sits below it. Consumer positions the wrapper (e.g. absolute top-left). */
+.bk-hamburger {
+    position: relative;
+    display: inline-block;
+}

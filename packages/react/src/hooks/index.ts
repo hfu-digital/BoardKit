@@ -29,3 +29,5 @@ export { useElementMutations } from './useElementMutations';
 export type { UseElementMutationsResult } from './useElementMutations';
 export { useContextMenu } from './useContextMenu';
 export type { ContextMenuState } from './useContextMenu';
+export { useTheme } from './useTheme';
+export type { UseThemeResult, BoardKitThemeMode } from './useTheme';

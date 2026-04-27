@@ -30,3 +30,5 @@ export { LibraryPanel } from './LibraryPanel';
 export type { LibraryPanelProps } from './LibraryPanel';
 export { OnboardingTour } from './OnboardingTour';
 export type { OnboardingTourProps } from './OnboardingTour';
+export { HamburgerMenu } from './HamburgerMenu';
+export type { HamburgerMenuProps } from './HamburgerMenu';
