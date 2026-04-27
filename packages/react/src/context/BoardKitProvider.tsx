@@ -13,6 +13,13 @@ export interface BoardKitConfig {
     apiUrl: string;
     wsUrl?: string;
     authToken?: string;
+    /**
+     * Authenticated user id. Stamped on element.createdBy when tools emit
+     * `create` mutations so the server (and other clients) can attribute
+     * the element. Without it, createdBy is empty string and attribution
+     * is lost — the row still saves.
+     */
+    userId?: string;
     theme?: Partial<BoardKitTheme>;
 }
 

@@ -28,9 +28,29 @@ export function BoardCanvas({
 }: BoardCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const pipelineRef = useRef<InputPipeline | null>(null);
-    const { store, renderer, toolRegistry } = useBoardKit();
+    const { store, renderer, toolRegistry, config } = useBoardKit();
 
     useKeyboardShortcuts();
+
+    // Tools cache pageId + createdBy as instance state and stamp them on
+    // every element they create. Without an explicit set, currentPageId
+    // stays empty string — elements get persisted with pageId='' and the
+    // server can never associate them back to a page on reload, so the
+    // board appears not to save. Re-sync on any pages-slice change (active
+    // page switch, page rename) AND on userId change.
+    useEffect(() => {
+        const sync = () => {
+            const pageId = store.getState().activePageId ?? '';
+            const userId = config.userId ?? '';
+            for (const tool of toolRegistry.getAll()) {
+                const t = tool as { setPageId?: (id: string) => void; setCreatedBy?: (id: string) => void };
+                t.setPageId?.(pageId);
+                t.setCreatedBy?.(userId);
+            }
+        };
+        sync();
+        return store.subscribe('pages', sync);
+    }, [store, toolRegistry, config.userId]);
     // Hosted inside BoardCanvas so drag-drop + paste + the file picker work
     // without the consumer wiring useImageImport themselves. When the user
     // selects the Image tool, we open the file picker and snap back to Select
