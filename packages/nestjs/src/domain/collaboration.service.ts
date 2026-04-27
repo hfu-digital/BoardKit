@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Participant, ElementMutation } from '@hfu.digital/boardkit-core';
 import { BoardStorage, type ElementUpsert } from '../interfaces/board-storage.interface';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
@@ -39,6 +39,7 @@ const PENDING_FLUSH_INTERVAL = 5_000;
 
 @Injectable()
 export class CollaborationService {
+    private readonly logger = new Logger(CollaborationService.name);
     private sessions = new Map<string, BoardSession>();
     private idleChecker: ReturnType<typeof setInterval> | null = null;
     private flushChecker: ReturnType<typeof setInterval> | null = null;
@@ -221,17 +222,46 @@ export class CollaborationService {
         if (upserts.length > 0) {
             const pageGroups = new Map<string, ElementUpsert[]>();
             for (const u of upserts) {
+                if (!u.pageId) {
+                    // Defensive: an empty pageId means the React tool emitted
+                    // before BoardCanvas's setPageId sync ran. The DB upsert
+                    // would FK-violate; drop and log instead of silently losing.
+                    this.logger.warn(
+                        `flushPending: dropping upsert with empty pageId (board=${boardId}, element=${u.id})`,
+                    );
+                    continue;
+                }
                 const group = pageGroups.get(u.pageId) ?? [];
                 group.push(u);
                 pageGroups.set(u.pageId, group);
             }
             for (const [pageId, group] of pageGroups) {
-                await this.storage.upsertElements(pageId, group);
+                try {
+                    await this.storage.upsertElements(pageId, group);
+                } catch (err) {
+                    // Without this log every Postgres exception (FK violation,
+                    // unique violation, connection loss) was silently swallowed
+                    // by the periodic flush's Promise.allSettled. The drawing
+                    // looked saved on the client but vanished on reload.
+                    this.logger.error(
+                        `flushPending: upsertElements failed for page=${pageId} (board=${boardId}, count=${group.length}): ${err instanceof Error ? err.message : String(err)}`,
+                        err instanceof Error ? err.stack : undefined,
+                    );
+                    throw err;
+                }
             }
         }
 
         if (deletes.length > 0) {
-            await this.storage.deleteElements(deletes);
+            try {
+                await this.storage.deleteElements(deletes);
+            } catch (err) {
+                this.logger.error(
+                    `flushPending: deleteElements failed (board=${boardId}, count=${deletes.length}): ${err instanceof Error ? err.message : String(err)}`,
+                    err instanceof Error ? err.stack : undefined,
+                );
+                throw err;
+            }
         }
     }
 
@@ -295,13 +325,24 @@ export class CollaborationService {
     }
 
     async flushAllActive(): Promise<void> {
-        const promises: Promise<void>[] = [];
+        const entries: Array<{ boardId: string; promise: Promise<void> }> = [];
         for (const [boardId, session] of this.sessions) {
             if (session.pendingMutations.length > 0) {
-                promises.push(this.flushPending(boardId));
+                entries.push({ boardId, promise: this.flushPending(boardId) });
             }
         }
-        await Promise.allSettled(promises);
+        // allSettled keeps one bad board from blocking the others, but we MUST
+        // surface rejections — silent failures here mean drawings never hit
+        // disk and the user thinks they're saved.
+        const results = await Promise.allSettled(entries.map((e) => e.promise));
+        for (let i = 0; i < results.length; i++) {
+            const r = results[i];
+            if (r.status === 'rejected') {
+                this.logger.error(
+                    `flushAllActive: board=${entries[i].boardId} rejected — ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`,
+                );
+            }
+        }
     }
 
     async closeSession(boardId: string): Promise<void> {

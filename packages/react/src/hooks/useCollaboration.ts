@@ -1,7 +1,79 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { ElementMutation, ServerMessage, ClientMessage } from '@hfu.digital/boardkit-core';
+import type { ElementMutation, ServerMessage, ClientMessage, Element, Page, Board } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
+import type { BoardStore } from '../store/board-store';
 import { io, Socket } from 'socket.io-client';
+
+/**
+ * Apply a batch of mutations to the store's scene. Shared by the realtime
+ * `mutation:broadcast` handler AND the catch-up `sync:delta` handler so the
+ * two paths can never drift. Filters out mutations targeting non-existent
+ * pages (defensive — server should already only push valid ones).
+ */
+function applyMutationsToScene(store: BoardStore, mutations: ElementMutation[]): void {
+    const { pages } = store.getState();
+    const pageIds = new Set(pages.map((p) => p.id));
+    const valid = mutations.filter((m) => {
+        if (pageIds.size > 0 && !pageIds.has(m.pageId)) {
+            console.warn(`Skipping mutation for non-existent page: ${m.pageId}`);
+            return false;
+        }
+        return true;
+    });
+    if (valid.length === 0) return;
+
+    store.updateScene((scene) => {
+        let s = scene;
+        for (const m of valid) {
+            if (m.type === 'create' && m.data) {
+                const elements = new Map(s.elements);
+                elements.set(m.elementId, m.data as Element);
+                s = { elements, elementOrder: [...s.elementOrder, m.elementId] };
+            } else if (m.type === 'update' && m.data) {
+                const existing = s.elements.get(m.elementId);
+                if (!existing) continue;
+                const elements = new Map(s.elements);
+                elements.set(m.elementId, { ...existing, ...(m.data as Element) });
+                s = { elements, elementOrder: s.elementOrder };
+            } else if (m.type === 'delete') {
+                const elements = new Map(s.elements);
+                elements.delete(m.elementId);
+                s = { elements, elementOrder: s.elementOrder.filter((id) => id !== m.elementId) };
+            }
+        }
+        return s;
+    });
+}
+
+/**
+ * Hydrate the store from a `sync:full` payload. The server sends
+ * `boardData: { board, pages, elements: Record<pageId, Element[]> }` — without
+ * unpacking it here, drawings persisted in earlier sessions never reach the
+ * canvas on reload (they live in Postgres but the React store stays empty).
+ */
+function applyFullSync(
+    store: BoardStore,
+    payload: { board?: Board; pages?: Page[]; elements?: Record<string, Element[]> } | undefined,
+): void {
+    if (!payload) return;
+    if (payload.board) store.setBoard(payload.board);
+    if (payload.pages) store.setPages(payload.pages);
+
+    const pages = payload.pages ?? store.getState().pages;
+    const currentActive = store.getState().activePageId;
+    const activePageId = currentActive ?? pages[0]?.id ?? null;
+    if (!currentActive && activePageId) store.setActivePageId(activePageId);
+    if (!activePageId) return;
+
+    const elementsForActive = payload.elements?.[activePageId] ?? [];
+    const elementMap = new Map<string, Element>();
+    const order: string[] = [];
+    for (const el of elementsForActive) {
+        elementMap.set(el.id, el);
+        order.push(el.id);
+    }
+    store.updateScene(() => ({ elements: elementMap, elementOrder: order }));
+}
 
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -104,10 +176,24 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
 
                 case 'sync:delta':
                     lastSequenceRef.current = message.toSequence;
+                    // Catch-up after a brief disconnect — apply the missed
+                    // mutations that happened while we were offline.
+                    applyMutationsToScene(store, message.mutations);
                     break;
 
                 case 'sync:full':
                     lastSequenceRef.current = message.currentSequence;
+                    // Initial join (or resync after long disconnect): the
+                    // server pushes the full board + pages + elements down.
+                    // Without this the canvas stays blank on reload.
+                    applyFullSync(
+                        store,
+                        message.boardData as {
+                            board?: Board;
+                            pages?: Page[];
+                            elements?: Record<string, Element[]>;
+                        },
+                    );
                     break;
 
                 case 'mutation:ack':
@@ -116,38 +202,7 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
 
                 case 'mutation:broadcast': {
                     lastSequenceRef.current = message.sequence;
-
-                    // Filter out mutations targeting non-existent pages
-                    const { pages } = store.getState();
-                    const pageIds = new Set(pages.map((p) => p.id));
-                    const validMutations = message.mutations.filter((m) => {
-                        if (pageIds.size > 0 && !pageIds.has(m.pageId)) {
-                            console.warn(
-                                `Skipping mutation for non-existent page: ${m.pageId}`,
-                            );
-                            return false;
-                        }
-                        return true;
-                    });
-
-                    if (validMutations.length === 0) break;
-
-                    // Apply remote mutations to store
-                    store.updateScene((scene) => {
-                        let s = scene;
-                        for (const m of validMutations) {
-                            if (m.type === 'create' && m.data) {
-                                const elements = new Map(s.elements);
-                                elements.set(m.elementId, m.data as any);
-                                s = { elements, elementOrder: [...s.elementOrder, m.elementId] };
-                            } else if (m.type === 'delete') {
-                                const elements = new Map(s.elements);
-                                elements.delete(m.elementId);
-                                s = { elements, elementOrder: s.elementOrder.filter((id) => id !== m.elementId) };
-                            }
-                        }
-                        return s;
-                    });
+                    applyMutationsToScene(store, message.mutations);
                     break;
                 }
 

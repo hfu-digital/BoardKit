@@ -163,7 +163,19 @@ export function BoardCanvas({
                     // Enqueue for transmission. The useCollaboration hook subscribes to
                     // the 'outbound' slice and flushes the queue with debouncing — without
                     // this enqueue, mutations stay local and the board never persists.
-                    store.enqueueOutboundMutations(result.mutations);
+                    // Drop mutations with empty pageId — those would FK-violate at the
+                    // server's upsert. This only happens during the brief window between
+                    // mount and useBoard's setActivePageId; the local apply already
+                    // persisted the visual.
+                    const sendable = result.mutations.filter((m) => m.pageId !== '');
+                    if (sendable.length !== result.mutations.length) {
+                        console.warn(
+                            `BoardCanvas: skipped ${result.mutations.length - sendable.length} mutation(s) with empty pageId — pages not loaded yet`,
+                        );
+                    }
+                    if (sendable.length > 0) {
+                        store.enqueueOutboundMutations(sendable);
+                    }
                 }
                 if (result.cursor) {
                     canvas.style.cursor = result.cursor;
