@@ -31,11 +31,17 @@ export interface SessionStats {
 const IDLE_CHECK_INTERVAL = 60_000; // 60 seconds
 const EPHEMERAL_IDLE_TIMEOUT = 300_000; // 5 minutes
 const PERSISTENT_IDLE_TIMEOUT = 900_000; // 15 minutes
+// Without periodic flush, materialization waits for session archive (15 min idle).
+// That meant a user could draw, refresh the page, and lose everything because the
+// element rows were never written. 5 s strikes a balance: low DB churn, near-instant
+// durability after the user pauses.
+const PENDING_FLUSH_INTERVAL = 5_000;
 
 @Injectable()
 export class CollaborationService {
     private sessions = new Map<string, BoardSession>();
     private idleChecker: ReturnType<typeof setInterval> | null = null;
+    private flushChecker: ReturnType<typeof setInterval> | null = null;
 
     constructor(
         private readonly storage: BoardStorage,
@@ -75,6 +81,7 @@ export class CollaborationService {
             };
             this.sessions.set(boardId, session);
             this.startIdleChecker();
+            this.startFlushChecker();
         }
 
         // Transition from idle back to active when a participant joins
@@ -273,12 +280,37 @@ export class CollaborationService {
         }
     }
 
+    startFlushChecker(): void {
+        if (this.flushChecker !== null) return;
+        this.flushChecker = setInterval(() => {
+            this.flushAllActive();
+        }, PENDING_FLUSH_INTERVAL);
+    }
+
+    stopFlushChecker(): void {
+        if (this.flushChecker !== null) {
+            clearInterval(this.flushChecker);
+            this.flushChecker = null;
+        }
+    }
+
+    async flushAllActive(): Promise<void> {
+        const promises: Promise<void>[] = [];
+        for (const [boardId, session] of this.sessions) {
+            if (session.pendingMutations.length > 0) {
+                promises.push(this.flushPending(boardId));
+            }
+        }
+        await Promise.allSettled(promises);
+    }
+
     async closeSession(boardId: string): Promise<void> {
         await this.flushPending(boardId);
         this.sessions.delete(boardId);
 
         if (this.sessions.size === 0) {
             this.stopIdleChecker();
+            this.stopFlushChecker();
         }
     }
 
@@ -310,9 +342,10 @@ export class CollaborationService {
         session.state = 'archived';
         this.sessions.delete(boardId);
 
-        // Stop idle checker if no sessions remain
+        // Stop background workers if no sessions remain
         if (this.sessions.size === 0) {
             this.stopIdleChecker();
+            this.stopFlushChecker();
         }
     }
 }

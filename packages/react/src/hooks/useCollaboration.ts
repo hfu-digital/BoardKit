@@ -6,6 +6,7 @@ import { io, Socket } from 'socket.io-client';
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
+const OUTBOUND_FLUSH_DEBOUNCE_MS = 50;
 
 export interface UseCollaborationResult {
     connectionState: ConnectionState;
@@ -41,7 +42,44 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
         socketRef.current = socket;
         setConnectionState('connecting');
 
-        socket.on('connect', () => {
+        // Outbound mutation pump. Tool handlers enqueue mutations on the store's
+        // 'outbound' slice; this debounced drainer batches them onto the wire.
+        // Mutations queued while disconnected stay in `bufferedOnDisconnect`
+        // and ship after reconnect (`onConnect` kicks the timer). Without this
+        // loop, local edits never reach the server and the board never persists.
+        let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+        let bufferedOnDisconnect: ElementMutation[] = [];
+
+        const flushOutbound = () => {
+            pendingTimer = null;
+            const drained = store.drainOutboundMutations();
+            const all = bufferedOnDisconnect.length > 0
+                ? [...bufferedOnDisconnect, ...drained]
+                : drained;
+            if (all.length === 0) return;
+            if (!socket.connected) {
+                bufferedOnDisconnect = all;
+                return;
+            }
+            bufferedOnDisconnect = [];
+            socket.emit('mutate', {
+                mutations: all,
+                requestId: `req-${++requestIdRef.current}`,
+            });
+        };
+
+        const scheduleFlush = () => {
+            if (pendingTimer !== null) clearTimeout(pendingTimer);
+            pendingTimer = setTimeout(flushOutbound, OUTBOUND_FLUSH_DEBOUNCE_MS);
+        };
+
+        const unsubscribeOutbound = store.subscribe('outbound', scheduleFlush);
+
+        // The connect handler does both jobs: emit `join` so the server attaches
+        // us to the room, then flush any mutations buffered during a disconnect.
+        // Running both from one handler keeps ordering deterministic — join always
+        // emits before flush.
+        const onConnect = () => {
             setConnectionState('connecting');
 
             const joinPayload: Omit<ClientMessage & { type: 'join' }, 'type'> = {
@@ -50,7 +88,12 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
                 lastSequence: lastSequenceRef.current || undefined,
             };
             socket.emit('join', joinPayload);
-        });
+
+            if (bufferedOnDisconnect.length > 0 || store.getState().outboundMutations.length > 0) {
+                scheduleFlush();
+            }
+        };
+        socket.on('connect', onConnect);
 
         socket.on('message', (message: ServerMessage) => {
             switch (message.type) {
@@ -160,6 +203,8 @@ export function useCollaboration(boardId: string): UseCollaborationResult {
         });
 
         return () => {
+            unsubscribeOutbound();
+            if (pendingTimer !== null) clearTimeout(pendingTimer);
             socket.disconnect();
             socketRef.current = null;
             setConnectionState('disconnected');

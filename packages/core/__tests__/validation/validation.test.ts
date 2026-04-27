@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateElement } from '../../src/validation/element.validator';
 import { validateBoardLimits, validateAssetSize } from '../../src/validation/board.validator';
-import { DEFAULT_STROKE_STYLE, DEFAULT_TEXT_STYLE, DEFAULT_FILL_STYLE } from '../../src/constants';
+import { DEFAULT_STROKE_STYLE, DEFAULT_TEXT_STYLE, DEFAULT_SHAPE_STYLE } from '../../src/constants';
 
 describe('validateElement', () => {
     const validStroke = {
@@ -41,46 +41,97 @@ describe('validateElement', () => {
         expect(result.errors.some((e) => e.includes('Invalid element type'))).toBe(true);
     });
 
-    it('accepts connector type', () => {
-        const connector = {
-            id: 'conn-1',
-            pageId: 'page-1',
-            type: 'connector',
-            zIndex: 0,
-            createdBy: 'user-1',
-            data: {
-                startElementId: 'el-1',
-                endElementId: 'el-2',
-                startAnchor: 'right',
-                endAnchor: 'left',
-                waypoints: [],
-                style: { ...DEFAULT_STROKE_STYLE },
-                arrowStart: false,
-                arrowEnd: true,
-                bounds: { x: 0, y: 0, width: 100, height: 100 },
-            },
-        };
-        const result = validateElement(connector);
-        expect(result.valid).toBe(true);
+    it('rejects dropped legacy types (stickyNote / connector)', () => {
+        const sticky = { ...validStroke, type: 'stickyNote' };
+        const connector = { ...validStroke, type: 'connector' };
+        expect(validateElement(sticky).valid).toBe(false);
+        expect(validateElement(connector).valid).toBe(false);
     });
 
-    it('validates shape-specific fields', () => {
+    it('validates rectangle/diamond/ellipse shape types', () => {
+        for (const shapeType of ['rectangle', 'diamond', 'ellipse'] as const) {
+            const shape = {
+                id: `sh-${shapeType}`,
+                pageId: 'page-1',
+                type: 'shape',
+                zIndex: 0,
+                createdBy: 'user-1',
+                data: {
+                    shapeType,
+                    position: { x: 0, y: 0 },
+                    size: { width: 100, height: 80 },
+                    rotation: 0,
+                    style: { ...DEFAULT_SHAPE_STYLE },
+                    bounds: { x: 0, y: 0, width: 100, height: 80 },
+                },
+            };
+            expect(validateElement(shape).valid).toBe(true);
+        }
+    });
+
+    it('rejects unknown shape sub-types', () => {
         const shape = {
-            id: 'sh-1',
+            id: 'sh-bad',
             pageId: 'page-1',
             type: 'shape',
             zIndex: 0,
             createdBy: 'user-1',
             data: {
-                shapeType: 'rectangle',
+                shapeType: 'triangle',
                 position: { x: 0, y: 0 },
                 size: { width: 100, height: 80 },
                 rotation: 0,
-                style: { stroke: { ...DEFAULT_STROKE_STYLE }, fill: { ...DEFAULT_FILL_STYLE } },
+                style: { ...DEFAULT_SHAPE_STYLE },
                 bounds: { x: 0, y: 0, width: 100, height: 80 },
             },
         };
-        expect(validateElement(shape).valid).toBe(true);
+        expect(validateElement(shape).valid).toBe(false);
+    });
+
+    it('validates linear (line + arrow)', () => {
+        for (const linearType of ['line', 'arrow'] as const) {
+            const linear = {
+                id: `ln-${linearType}`,
+                pageId: 'page-1',
+                type: 'linear',
+                zIndex: 0,
+                createdBy: 'user-1',
+                data: {
+                    linearType,
+                    points: [{ x: 0, y: 0 }, { x: 100, y: 50 }],
+                    rotation: 0,
+                    style: { ...DEFAULT_STROKE_STYLE },
+                    roughness: 1,
+                    seed: 42,
+                    arrowStart: false,
+                    arrowEnd: linearType === 'arrow',
+                    bounds: { x: 0, y: 0, width: 100, height: 50 },
+                },
+            };
+            expect(validateElement(linear).valid).toBe(true);
+        }
+    });
+
+    it('rejects linear with fewer than 2 points', () => {
+        const linear = {
+            id: 'ln-bad',
+            pageId: 'page-1',
+            type: 'linear',
+            zIndex: 0,
+            createdBy: 'user-1',
+            data: {
+                linearType: 'line',
+                points: [{ x: 0, y: 0 }],
+                rotation: 0,
+                style: { ...DEFAULT_STROKE_STYLE },
+                roughness: 1,
+                seed: 42,
+                arrowStart: false,
+                arrowEnd: false,
+                bounds: { x: 0, y: 0, width: 0, height: 0 },
+            },
+        };
+        expect(validateElement(linear).valid).toBe(false);
     });
 
     it('validates text-specific fields', () => {
@@ -100,25 +151,6 @@ describe('validateElement', () => {
             },
         };
         expect(validateElement(text).valid).toBe(true);
-    });
-
-    it('validates stickyNote-specific fields', () => {
-        const note = {
-            id: 'sn-1',
-            pageId: 'page-1',
-            type: 'stickyNote',
-            zIndex: 0,
-            createdBy: 'user-1',
-            data: {
-                content: 'Note',
-                position: { x: 0, y: 0 },
-                size: { width: 200, height: 200 },
-                color: '#FFEAA7',
-                style: { ...DEFAULT_TEXT_STYLE },
-                bounds: { x: 0, y: 0, width: 200, height: 200 },
-            },
-        };
-        expect(validateElement(note).valid).toBe(true);
     });
 
     it('validates group-specific fields', () => {

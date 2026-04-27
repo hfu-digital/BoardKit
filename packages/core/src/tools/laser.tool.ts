@@ -89,6 +89,7 @@ export class LaserTool extends Tool {
                     opacity,
                     lineCap: 'round',
                     lineJoin: 'round',
+                    pattern: 'solid',
                 },
                 bounds: computeBounds(this.points),
             },

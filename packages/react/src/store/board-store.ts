@@ -6,6 +6,7 @@ import type {
     CursorPosition,
     SceneState,
     GridConfig,
+    ElementMutation,
 } from '@hfu.digital/boardkit-core';
 import { History, createScene, createDefaultGridConfig } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from '../engine/viewport';
@@ -33,6 +34,7 @@ export interface BoardStoreState {
     cursors: Map<string, CursorPosition>;
     lastError: BoardError | null;
     gridConfig: GridConfig;
+    outboundMutations: ElementMutation[];
 }
 
 export type StoreSlice =
@@ -45,7 +47,8 @@ export type StoreSlice =
     | 'participants'
     | 'cursors'
     | 'error'
-    | 'grid';
+    | 'grid'
+    | 'outbound';
 
 export class BoardStore {
     private state: BoardStoreState;
@@ -67,6 +70,7 @@ export class BoardStore {
             cursors: new Map(),
             lastError: null,
             gridConfig: createDefaultGridConfig(),
+            outboundMutations: [],
         };
     }
 
@@ -150,6 +154,20 @@ export class BoardStore {
     setError(error: BoardError | null): void {
         this.state.lastError = error;
         this.notify('error');
+    }
+
+    // Outbound mutation queue — populated by tool handlers, drained by useCollaboration.
+    // The collaboration layer is the only consumer of 'outbound'; persistence depends on it.
+    enqueueOutboundMutations(mutations: ElementMutation[]): void {
+        if (mutations.length === 0) return;
+        this.state.outboundMutations.push(...mutations);
+        this.notify('outbound');
+    }
+
+    drainOutboundMutations(): ElementMutation[] {
+        const drained = this.state.outboundMutations;
+        this.state.outboundMutations = [];
+        return drained;
     }
 
     // Pub/sub

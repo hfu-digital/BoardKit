@@ -4,12 +4,19 @@ import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { zoomToPoint } from '../engine/viewport';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useImageImport } from '../hooks/useImageImport';
 
 export interface BoardCanvasProps {
     boardId: string;
     className?: string;
     style?: React.CSSProperties;
     readOnly?: boolean;
+    /**
+     * Called on right-click. The consumer typically forwards this to a
+     * `useContextMenu` hook to open the ContextMenu at the click location.
+     * `elementId` is null for empty-canvas right-clicks.
+     */
+    onContextMenu?: (event: { clientX: number; clientY: number; elementId: string | null }) => void;
 }
 
 export function BoardCanvas({
@@ -17,12 +24,26 @@ export function BoardCanvas({
     className,
     style,
     readOnly = false,
+    onContextMenu,
 }: BoardCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const pipelineRef = useRef<InputPipeline | null>(null);
     const { store, renderer, toolRegistry } = useBoardKit();
 
     useKeyboardShortcuts();
+    // Hosted inside BoardCanvas so drag-drop + paste + the file picker work
+    // without the consumer wiring useImageImport themselves. When the user
+    // selects the Image tool, we open the file picker and snap back to Select
+    // so the toolbar doesn't stay in a weird "armed" state.
+    const { openFilePicker } = useImageImport(boardId);
+    useEffect(() => {
+        return store.subscribe('tool', () => {
+            if (store.getState().activeTool === 'image') {
+                openFilePicker();
+                store.setActiveTool('select');
+            }
+        });
+    }, [store, openFilePicker]);
 
     // Initialize renderer
     useEffect(() => {
@@ -102,10 +123,27 @@ export function BoardCanvas({
                                         m.elementId,
                                     ],
                                 };
+                            } else if (m.type === 'update' && m.data) {
+                                const existing = s.elements.get(m.elementId);
+                                if (!existing) continue;
+                                const elements = new Map(s.elements);
+                                elements.set(m.elementId, { ...existing, ...(m.data as any) });
+                                s = { elements, elementOrder: s.elementOrder };
+                            } else if (m.type === 'delete') {
+                                const elements = new Map(s.elements);
+                                elements.delete(m.elementId);
+                                s = {
+                                    elements,
+                                    elementOrder: s.elementOrder.filter((id) => id !== m.elementId),
+                                };
                             }
                         }
                         return s;
                     });
+                    // Enqueue for transmission. The useCollaboration hook subscribes to
+                    // the 'outbound' slice and flushes the queue with debouncing — without
+                    // this enqueue, mutations stay local and the board never persists.
+                    store.enqueueOutboundMutations(result.mutations);
                 }
                 if (result.cursor) {
                     canvas.style.cursor = result.cursor;
@@ -160,10 +198,41 @@ export function BoardCanvas({
         });
     }, [store, renderer]);
 
+    const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!onContextMenu) return;
+        e.preventDefault();
+        // Hit-test against the topmost element under the cursor in world space.
+        // Falls back to canvas-mode (null elementId) on miss.
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return onContextMenu({ clientX: e.clientX, clientY: e.clientY, elementId: null });
+        const state = store.getState();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        const worldX = (screenX - state.viewport.offset.x) / state.viewport.zoom;
+        const worldY = (screenY - state.viewport.offset.y) / state.viewport.zoom;
+        let hit: string | null = null;
+        // Highest zIndex wins (iterate in reverse element order so topmost first).
+        for (let i = state.scene.elementOrder.length - 1; i >= 0; i--) {
+            const id = state.scene.elementOrder[i];
+            const el = state.scene.elements.get(id);
+            if (!el || !('bounds' in el.data)) continue;
+            const b = el.data.bounds;
+            if (worldX >= b.x && worldX <= b.x + b.width && worldY >= b.y && worldY <= b.y + b.height) {
+                hit = id;
+                break;
+            }
+        }
+        if (hit && !state.selectedIds.has(hit)) {
+            store.setSelection(new Set([hit]));
+        }
+        onContextMenu({ clientX: e.clientX, clientY: e.clientY, elementId: hit });
+    };
+
     return (
         <div
             ref={containerRef}
             className={className}
+            onContextMenu={handleContextMenu}
             style={{
                 width: '100%',
                 height: '100%',

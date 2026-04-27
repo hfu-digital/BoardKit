@@ -1,0 +1,92 @@
+/* BoardKit theme tokens. Light is the default; consumers opt into dark by setting
+   [data-bk-theme="dark"] on a wrapping element (or letting prefers-color-scheme
+   take over via the bare :root selector below). All BoardKit components read
+   from these vars exclusively — never hard-code colors in component files. */
+
+:root,
+[data-bk-theme='light'] {
+    --bk-bg-canvas: #ffffff;
+    --bk-bg-surface: #ffffff;
+    --bk-bg-surface-hover: #f1f0ff;
+    --bk-bg-surface-active: #e0dfff;
+    --bk-bg-overlay: rgba(255, 255, 255, 0.92);
+    --bk-border: #e0e0e0;
+    --bk-border-strong: #c4c4cc;
+    --bk-text-primary: #1b1b1f;
+    --bk-text-secondary: #43434a;
+    --bk-text-muted: #8a8a96;
+    --bk-accent: #6965db;
+    --bk-accent-hover: #5754c5;
+    --bk-accent-fg: #ffffff;
+    --bk-danger: #d04444;
+    --bk-warning: #d68d2c;
+    --bk-success: #2faa6b;
+    --bk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --bk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    --bk-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+    --bk-radius-pill: 10px;
+    --bk-radius-md: 8px;
+    --bk-radius-sm: 6px;
+    --bk-radius-xs: 4px;
+    --bk-spacing-xs: 4px;
+    --bk-spacing-sm: 6px;
+    --bk-spacing-md: 8px;
+    --bk-spacing-lg: 12px;
+    --bk-spacing-xl: 16px;
+    --bk-font-hand: 'Virgil', 'Caveat', 'Comic Sans MS', system-ui, sans-serif;
+    --bk-font-code: 'Cascadia', 'Cascadia Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+    --bk-font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --bk-z-canvas: 1;
+    --bk-z-overlay: 10;
+    --bk-z-toolbar: 20;
+    --bk-z-panel: 25;
+    --bk-z-popover: 30;
+    --bk-z-modal: 40;
+    --bk-z-tooltip: 50;
+}
+
+[data-bk-theme='dark'] {
+    --bk-bg-canvas: #121212;
+    --bk-bg-surface: #1e1e25;
+    --bk-bg-surface-hover: #2a2a35;
+    --bk-bg-surface-active: #353545;
+    --bk-bg-overlay: rgba(30, 30, 37, 0.92);
+    --bk-border: #2e2e36;
+    --bk-border-strong: #45454f;
+    --bk-text-primary: #f1f1f5;
+    --bk-text-secondary: #c0c0c8;
+    --bk-text-muted: #7c7c88;
+    --bk-accent: #a8a5ff;
+    --bk-accent-hover: #c4c2ff;
+    --bk-accent-fg: #1b1b1f;
+    --bk-danger: #ef6868;
+    --bk-warning: #ecaa56;
+    --bk-success: #5ecf94;
+    --bk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --bk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --bk-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bk-theme='light']) {
+        --bk-bg-canvas: #121212;
+        --bk-bg-surface: #1e1e25;
+        --bk-bg-surface-hover: #2a2a35;
+        --bk-bg-surface-active: #353545;
+        --bk-bg-overlay: rgba(30, 30, 37, 0.92);
+        --bk-border: #2e2e36;
+        --bk-border-strong: #45454f;
+        --bk-text-primary: #f1f1f5;
+        --bk-text-secondary: #c0c0c8;
+        --bk-text-muted: #7c7c88;
+        --bk-accent: #a8a5ff;
+        --bk-accent-hover: #c4c2ff;
+        --bk-accent-fg: #1b1b1f;
+        --bk-danger: #ef6868;
+        --bk-warning: #ecaa56;
+        --bk-success: #5ecf94;
+        --bk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --bk-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.35);
+        --bk-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+    }
+}

@@ -1,14 +1,21 @@
-import type { StrokeStyle, FillStyle, TextStyle } from './types/styles';
+import type { StrokeStyle, FillStyle, ShapeStyle, TextStyle } from './types/styles';
 
+/**
+ * Excalidraw-aligned tool set. Letter shortcuts on the keyboard match
+ * Excalidraw's defaults so muscle memory transfers (V/R/D/O/A/L/P/T/I/E/H/K).
+ */
 export const TOOL_IDS = {
-    PEN: 'pen',
-    SHAPE: 'shape',
     SELECT: 'select',
-    ERASER: 'eraser',
+    RECTANGLE: 'rectangle',
+    DIAMOND: 'diamond',
+    ELLIPSE: 'ellipse',
+    ARROW: 'arrow',
+    LINE: 'line',
+    PEN: 'pen',
     TEXT: 'text',
+    IMAGE: 'image',
+    ERASER: 'eraser',
     HAND: 'hand',
-    STICKY_NOTE: 'stickyNote',
-    CONNECTOR: 'connector',
     LASER: 'laser',
 } as const;
 
@@ -20,24 +27,44 @@ export const LIMITS = {
 } as const;
 
 export const DEFAULT_STROKE_STYLE: StrokeStyle = {
-    color: '#000000',
+    color: '#1b1b1f',
     width: 2,
     opacity: 1,
     lineCap: 'round',
     lineJoin: 'round',
+    pattern: 'solid',
 };
 
 export const DEFAULT_FILL_STYLE: FillStyle = {
     type: 'none',
-    color: '#000000',
+    color: '#1b1b1f',
     opacity: 1,
 };
 
+/**
+ * The default seed is 1 (not 0, since Rough.js treats 0 as "use random seed"
+ * which would re-randomise on every render). Tool-creation code overrides
+ * with a per-element random seed so distinct shapes look distinct.
+ */
+export const DEFAULT_SHAPE_STYLE: ShapeStyle = {
+    stroke: { ...DEFAULT_STROKE_STYLE },
+    fill: { ...DEFAULT_FILL_STYLE },
+    roughness: 1,
+    seed: 1,
+    cornerRadius: 0,
+};
+
 export const DEFAULT_TEXT_STYLE: TextStyle = {
-    fontFamily: 'sans-serif',
-    fontSize: 16,
+    fontFamily: 'Virgil, Caveat, system-ui, sans-serif',
+    fontSize: 20,
     fontWeight: 'normal',
     fontStyle: 'normal',
-    color: '#000000',
+    color: '#1b1b1f',
     textAlign: 'left',
+    opacity: 1,
 };
+
+/** Random seed in the int32 range Rough.js expects. */
+export function generateRoughSeed(): number {
+    return Math.floor(Math.random() * 2 ** 31);
+}

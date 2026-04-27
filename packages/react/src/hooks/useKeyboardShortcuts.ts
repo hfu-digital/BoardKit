@@ -230,21 +230,28 @@ export function useKeyboardShortcuts(): void {
                 return;
             }
 
-            // Tool shortcuts (number keys)
-            const toolMap: Record<string, string> = {
-                '1': TOOL_IDS.SELECT,
-                '2': TOOL_IDS.PEN,
-                '3': TOOL_IDS.SHAPE,
-                '4': TOOL_IDS.TEXT,
-                '5': TOOL_IDS.ERASER,
-                '6': TOOL_IDS.HAND,
-                '7': TOOL_IDS.STICKY_NOTE,
-                '8': TOOL_IDS.CONNECTOR,
-                '9': TOOL_IDS.LASER,
-            };
-            if (toolMap[e.key]) {
-                store.setActiveTool(toolMap[e.key]);
-                return;
+            // Excalidraw-aligned tool shortcuts. Letters only (no Ctrl); skip if
+            // a modifier is held to avoid hijacking browser shortcuts.
+            if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+                const toolMap: Record<string, string> = {
+                    v: TOOL_IDS.SELECT,
+                    r: TOOL_IDS.RECTANGLE,
+                    d: TOOL_IDS.DIAMOND,
+                    o: TOOL_IDS.ELLIPSE,
+                    a: TOOL_IDS.ARROW,
+                    l: TOOL_IDS.LINE,
+                    p: TOOL_IDS.PEN,
+                    t: TOOL_IDS.TEXT,
+                    i: TOOL_IDS.IMAGE,
+                    e: TOOL_IDS.ERASER,
+                    h: TOOL_IDS.HAND,
+                    k: TOOL_IDS.LASER,
+                };
+                const key = e.key.toLowerCase();
+                if (toolMap[key]) {
+                    store.setActiveTool(toolMap[key]);
+                    return;
+                }
             }
         };
 
