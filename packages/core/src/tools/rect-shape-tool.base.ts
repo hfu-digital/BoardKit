@@ -24,6 +24,13 @@ export abstract class RectShapeTool extends Tool {
     private startPos: Point | null = null;
     private currentPageId = '';
     private createdBy = '';
+    /**
+     * Seed captured once at pointer-down so the Rough.js wobble stays stable
+     * during the drag preview and matches the persisted shape on pointer-up.
+     * Without this, every onPointerMove regenerates a seed and the preview
+     * flickers between random sketches.
+     */
+    private currentSeed = 1;
 
     setPageId(pageId: string): void {
         this.currentPageId = pageId;
@@ -36,6 +43,7 @@ export abstract class RectShapeTool extends Tool {
     onPointerDown(event: InputEvent, _scene: SceneState): ToolResult {
         this.state = 'active';
         this.startPos = event.position;
+        this.currentSeed = generateRoughSeed();
         return { cursor: 'crosshair', state: this.state };
     }
 
@@ -110,7 +118,7 @@ export abstract class RectShapeTool extends Tool {
                 position: { x, y },
                 size: { width: absW, height: absH },
                 rotation: 0,
-                style: { ...DEFAULT_SHAPE_STYLE, seed: generateRoughSeed() },
+                style: { ...DEFAULT_SHAPE_STYLE, seed: this.currentSeed },
                 bounds,
             },
         };

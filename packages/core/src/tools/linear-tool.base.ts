@@ -21,6 +21,8 @@ export abstract class LinearTool extends Tool {
     private startPos: Point | null = null;
     private currentPageId = '';
     private createdBy = '';
+    /** Captured at pointer-down so the Rough.js wobble stays stable across the drag. */
+    private currentSeed = 1;
 
     setPageId(pageId: string): void {
         this.currentPageId = pageId;
@@ -33,6 +35,7 @@ export abstract class LinearTool extends Tool {
     onPointerDown(event: InputEvent, _scene: SceneState): ToolResult {
         this.state = 'active';
         this.startPos = event.position;
+        this.currentSeed = generateRoughSeed();
         return { cursor: 'crosshair', state: this.state };
     }
 
@@ -117,7 +120,7 @@ export abstract class LinearTool extends Tool {
                 rotation: 0,
                 style: { ...DEFAULT_STROKE_STYLE },
                 roughness: 1,
-                seed: generateRoughSeed(),
+                seed: this.currentSeed,
                 arrowStart: false,
                 arrowEnd: this.arrowEnd,
                 bounds,
