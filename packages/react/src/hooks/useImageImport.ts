@@ -134,7 +134,9 @@ export function useImageImport(boardId: string): UseImageImportResult {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({
-                            data: base64,
+                            // AssetController binds @Body() body: { file, mimeType, sizeBytes }
+                            // — sending `data` here would produce a 500 (Buffer.from(undefined)).
+                            file: base64,
                             mimeType: file.type,
                             sizeBytes: file.size,
                         }),
