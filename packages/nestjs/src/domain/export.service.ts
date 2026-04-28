@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import type {
     Element,
     StrokeElement,
@@ -10,6 +10,7 @@ import type {
 } from '@hfu.digital/boardkit-core';
 import type { Page } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
+import { AssetStorage } from '../interfaces/asset-storage.interface';
 
 export type ExportFormat = 'png' | 'pdf' | 'svg';
 
@@ -86,7 +87,10 @@ const DEFAULT_CANVAS_SIZE = 800;
 export class ExportService {
     private canvasFactory: ServerCanvasFactory | null = null;
 
-    constructor(private readonly storage: BoardStorage) {}
+    constructor(
+        private readonly storage: BoardStorage,
+        @Optional() private readonly assetStorage?: AssetStorage,
+    ) {}
 
     setCanvasFactory(factory: ServerCanvasFactory): void {
         this.canvasFactory = factory;
@@ -148,9 +152,10 @@ export class ExportService {
         const offsetX = EXPORT_PADDING - bbox.x;
         const offsetY = EXPORT_PADDING - bbox.y;
         const sorted = [...elements].sort((a, b) => a.zIndex - b.zIndex);
-        const svgContent = sorted
-            .map((el) => this.renderElementToSvg(el, offsetX, offsetY))
-            .join('\n');
+        const svgChunks = await Promise.all(
+            sorted.map((el) => this.renderElementToSvg(el, offsetX, offsetY, page.boardId)),
+        );
+        const svgContent = svgChunks.join('\n');
 
         const svg = [
             `<?xml version="1.0" encoding="UTF-8"?>`,
@@ -367,7 +372,7 @@ export class ExportService {
 
     // ── SVG rendering ────────────────────────────────────────────────────
 
-    private renderElementToSvg(element: Element, offsetX: number, offsetY: number): string {
+    private async renderElementToSvg(element: Element, offsetX: number, offsetY: number, boardId: string): Promise<string> {
         switch (element.type) {
             case 'stroke':
                 return this.renderStrokeToSvg(element, offsetX, offsetY);
@@ -378,7 +383,7 @@ export class ExportService {
             case 'text':
                 return this.renderTextToSvg(element, offsetX, offsetY);
             case 'image':
-                return this.renderImageToSvg(element, offsetX, offsetY);
+                return await this.renderImageToSvg(element, offsetX, offsetY, boardId);
             case 'group':
                 return '';
             default:
@@ -511,9 +516,34 @@ export class ExportService {
         );
     }
 
-    private renderImageToSvg(element: ImageElement, offsetX: number, offsetY: number): string {
-        const { position, size } = element.data;
+    private async renderImageToSvg(
+        element: ImageElement,
+        offsetX: number,
+        offsetY: number,
+        boardId: string,
+    ): Promise<string> {
+        const { position, size, assetId } = element.data;
         const x = position.x + offsetX, y = position.y + offsetY;
+
+        // Try to embed the actual image as a base64 data URI. Without this
+        // the public share-link viewer (which renders this SVG via <object>)
+        // sees only the placeholder. Fall back to the placeholder on any
+        // failure (no asset storage injected, asset not found, download
+        // error) so an export never crashes the whole SVG.
+        if (this.assetStorage && assetId) {
+            try {
+                const record = await this.assetStorage.findById(boardId, assetId);
+                if (record) {
+                    const buffer = await this.assetStorage.download(record.storageKey);
+                    const base64 = buffer.toString('base64');
+                    const mime = record.mimeType || 'image/png';
+                    return `    <image x="${x}" y="${y}" width="${size.width}" height="${size.height}" href="data:${mime};base64,${base64}" preserveAspectRatio="xMidYMid meet" />`;
+                }
+            } catch {
+                // fall through to placeholder
+            }
+        }
+
         return [
             `    <rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1" />`,
             `    <line x1="${x}" y1="${y}" x2="${x + size.width}" y2="${y + size.height}" stroke="#9ca3af" stroke-width="1" />`,

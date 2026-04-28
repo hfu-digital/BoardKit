@@ -1,6 +1,6 @@
 {
     "name": "@hfu.digital/boardkit-react",
-    "version": "2026.04.18",
+    "version": "2026.04.19",
     "description": "React component library for BoardKit — dual-canvas renderer, hooks, and real-time collaboration UI",
     "license": "MIT",
     "repository": {
