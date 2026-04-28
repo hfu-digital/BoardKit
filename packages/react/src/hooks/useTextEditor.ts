@@ -42,6 +42,13 @@ export interface UseTextEditorResult {
     commitText: (content: string) => void;
     /** Discard the session without persisting. */
     cancel: () => void;
+    /**
+     * Update the active session's text color. Lets the user pick a color
+     * while typing (via the inline palette in <TextEditor/>) instead of
+     * having to commit, re-select with SelectTool, then change in
+     * PropertiesPanel.
+     */
+    setSessionColor: (color: string) => void;
 }
 
 /**
@@ -254,7 +261,19 @@ export function useTextEditor(options?: { readOnly?: boolean }): UseTextEditorRe
         store.setActiveTool('select');
     }, [session, store, updateSession]);
 
-    return { session, beginEditExternal, commitText, cancel };
+    const setSessionColor = useCallback(
+        (color: string) => {
+            const current = sessionRef.current;
+            if (!current) return;
+            updateSession({
+                ...current,
+                style: { ...current.style, color },
+            });
+        },
+        [updateSession],
+    );
+
+    return { session, beginEditExternal, commitText, cancel, setSessionColor };
 }
 
 // --- text measurement -------------------------------------------------------

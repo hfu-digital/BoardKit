@@ -36,6 +36,12 @@ const GAP = 6;
 export function Tooltip({ label, shortcut, side = 'top', delay = 250, children }: TooltipProps) {
     const [open, setOpen] = useState(false);
     const [position, setPosition] = useState<Position | null>(null);
+    // Resolved at open-time so the bubble portals into the closest [data-bk-root]
+    // ancestor of the trigger — that's where the consumer (or useTheme) sets
+    // `data-bk-theme`, and CSS variables in tokens.css only cascade to
+    // descendants of that attribute. Portaling to document.body would lock
+    // tooltips to the `:root` (light) defaults regardless of theme.
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
     const triggerRef = useRef<HTMLElement | null>(null);
     const bubbleRef = useRef<HTMLDivElement | null>(null);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,6 +107,8 @@ export function Tooltip({ label, shortcut, side = 'top', delay = 250, children }
         if (trigger.getAttribute('aria-disabled') === 'true') return;
         clearTimer();
         timerRef.current = setTimeout(() => {
+            const root = trigger.closest('[data-bk-root]') as HTMLElement | null;
+            setPortalTarget(root ?? (typeof document !== 'undefined' ? document.body : null));
             setPosition(computePosition());
             setOpen(true);
         }, delay);
@@ -153,8 +161,6 @@ export function Tooltip({ label, shortcut, side = 'top', delay = 250, children }
             hide();
         },
     });
-
-    const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
     return (
         <>

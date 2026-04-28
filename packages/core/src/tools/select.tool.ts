@@ -3,6 +3,7 @@ import type { SceneState } from '../scene/scene-graph';
 import {
     boundsIntersect,
     calculateBounds,
+    hitTestElement,
     mergeBounds,
     pointInBounds,
 } from '../scene/bounds';
@@ -328,12 +329,14 @@ export class SelectTool extends Tool {
     }
 
     private hitTest(position: Point, scene: SceneState): string | null {
+        // Tolerance is in world units; scaling by 1/zoom keeps the on-screen
+        // forgiveness ~6px regardless of how zoomed-in the canvas is.
+        const tolerance = 6 / Math.max(this.currentZoom, 0.0001);
         for (let i = scene.elementOrder.length - 1; i >= 0; i--) {
             const id = scene.elementOrder[i];
             const el = scene.elements.get(id);
             if (el && el.pageId === this.currentPageId) {
-                const bounds = calculateBounds(el);
-                if (pointInBounds(position, bounds)) {
+                if (hitTestElement(position, el, tolerance, scene)) {
                     return id;
                 }
             }

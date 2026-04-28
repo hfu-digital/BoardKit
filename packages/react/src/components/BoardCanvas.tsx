@@ -1,14 +1,42 @@
 import React, { useRef, useEffect } from 'react';
-import type { InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
-import { calculateBounds, deepMerge, pointInBounds, SelectTool } from '@hfu.digital/boardkit-core';
+import type { Element, InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
+import { deepMerge, hitTestElement, SelectTool } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { screenToWorld, zoomToPoint } from '../engine/viewport';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useImageImport } from '../hooks/useImageImport';
-import { useTextEditor } from '../hooks/useTextEditor';
+import { useTextEditor, type TextEditorSession } from '../hooks/useTextEditor';
 import { useViewport } from '../hooks/useViewport';
+import { EXCALIDRAW_STROKE_COLORS } from '../styles/excalidraw-palette';
 import { TextEditor } from './TextEditor';
+
+/**
+ * Build the elements list for `renderStaticLayer`. Iterating
+ * `scene.elementOrder` (not `Map.values()`) keeps render order in lockstep
+ * with `SelectTool.hitTest`, which iterates `elementOrder` from end to start.
+ * Without the alignment, `Bring to front` / `Send to back` reorderings can
+ * desync render and hit-test, so a click on a visually-front element selects
+ * the visually-back one.
+ *
+ * Also hides the element currently being edited via the inline TextEditor —
+ * otherwise the canvas-rendered text and the textarea overlay both show the
+ * same content, looking duplicated and slightly drifted due to font metric
+ * differences between Canvas2D and the textarea's HTML line-box.
+ */
+function collectElementsForRender(
+    state: { scene: { elements: Map<string, Element>; elementOrder: string[] } },
+    session: TextEditorSession | null,
+): Element[] {
+    const editingId = session?.mode === 'edit' ? session.elementId : null;
+    const elements: Element[] = [];
+    for (const id of state.scene.elementOrder) {
+        if (id === editingId) continue;
+        const el = state.scene.elements.get(id);
+        if (el) elements.push(el);
+    }
+    return elements;
+}
 
 export interface BoardCanvasProps {
     boardId: string;
@@ -287,27 +315,49 @@ export function BoardCanvas({
         return store.subscribe('viewport', () => {
             const state = store.getState();
             pipelineRef.current?.updateViewport(state.viewport);
-            const elements = Array.from(state.scene.elements.values());
+            const elements = collectElementsForRender(state, textEditor.session);
             renderer.renderStaticLayer(elements, {
                 viewport: state.viewport,
                 selectedIds: state.selectedIds,
                 activeTool: state.activeTool,
             });
         });
-    }, [store, renderer]);
+    }, [store, renderer, textEditor.session]);
 
     // Sync scene to renderer
     useEffect(() => {
         return store.subscribe('scene', () => {
             const state = store.getState();
-            const elements = Array.from(state.scene.elements.values());
+            const elements = collectElementsForRender(state, textEditor.session);
             renderer.renderStaticLayer(elements, {
                 viewport: state.viewport,
                 selectedIds: state.selectedIds,
                 activeTool: state.activeTool,
             });
         });
-    }, [store, renderer]);
+    }, [store, renderer, textEditor.session]);
+
+    // Force a static-layer redraw whenever a text-edit session opens or
+    // closes. Without this, the underlying text element keeps rendering
+    // until the next mutation, which makes the textarea overlay look like
+    // a duplicated, slightly-shifted copy of the canvas-rendered text.
+    // Keyed on `elementId + mode` so re-keys only happen on session
+    // start / end / mode-flip — not on every keystroke or color tweak.
+    const editingKey = textEditor.session
+        ? `${textEditor.session.mode}:${textEditor.session.elementId}`
+        : null;
+    useEffect(() => {
+        const state = store.getState();
+        const elements = collectElementsForRender(state, textEditor.session);
+        renderer.renderStaticLayer(elements, {
+            viewport: state.viewport,
+            selectedIds: state.selectedIds,
+            activeTool: state.activeTool,
+        });
+        // textEditor.session is intentionally read but not in the dep array —
+        // we re-fire only on `editingKey` changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [renderer, store, editingKey]);
 
     // Push fresh selection to the renderer's interactive-layer args. The
     // interactive layer renders every rAF frame but reads selectedIds from
@@ -337,17 +387,16 @@ export function BoardCanvas({
         const state = store.getState();
         const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         const world = screenToWorld(screen, state.viewport);
-        // Topmost text element under the cursor wins. Use calculateBounds —
-        // text element bounds in `data.bounds` may be stale until a commit
-        // re-measures, but calculateBounds reads `position` + `size` which
-        // useTextEditor.commitText keeps fresh.
+        // Topmost text element under the cursor wins. Text always uses bounds
+        // (no transparent-fill semantics), so a tolerance of 0 + bounds-only
+        // hit-test is fine.
+        const tolerance = 6 / Math.max(state.viewport.zoom, 0.0001);
         for (let i = state.scene.elementOrder.length - 1; i >= 0; i--) {
             const id = state.scene.elementOrder[i];
             const el = state.scene.elements.get(id);
             if (!el || el.type !== 'text') continue;
             if (el.pageId !== state.activePageId) continue;
-            const bounds = calculateBounds(el);
-            if (pointInBounds(world, bounds)) {
+            if (hitTestElement(world, el, tolerance, state.scene)) {
                 textEditor.beginEditExternal(id, world);
                 return;
             }
@@ -358,22 +407,25 @@ export function BoardCanvas({
         if (!onContextMenu) return;
         e.preventDefault();
         // Hit-test against the topmost element under the cursor in world space.
-        // Falls back to canvas-mode (null elementId) on miss.
+        // Uses `hitTestElement` so transparent shapes don't steal right-clicks
+        // from elements visually inside them. Falls back to canvas-mode (null
+        // elementId) on miss.
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return onContextMenu({ clientX: e.clientX, clientY: e.clientY, elementId: null });
         const state = store.getState();
         const screenX = e.clientX - rect.left;
         const screenY = e.clientY - rect.top;
-        const worldX = (screenX - state.viewport.offset.x) / state.viewport.zoom;
-        const worldY = (screenY - state.viewport.offset.y) / state.viewport.zoom;
+        const world = {
+            x: (screenX - state.viewport.offset.x) / state.viewport.zoom,
+            y: (screenY - state.viewport.offset.y) / state.viewport.zoom,
+        };
+        const tolerance = 6 / Math.max(state.viewport.zoom, 0.0001);
         let hit: string | null = null;
-        // Highest zIndex wins (iterate in reverse element order so topmost first).
         for (let i = state.scene.elementOrder.length - 1; i >= 0; i--) {
             const id = state.scene.elementOrder[i];
             const el = state.scene.elements.get(id);
-            if (!el || !('bounds' in el.data)) continue;
-            const b = el.data.bounds;
-            if (worldX >= b.x && worldX <= b.x + b.width && worldY >= b.y && worldY <= b.y + b.height) {
+            if (!el || el.pageId !== state.activePageId) continue;
+            if (hitTestElement(world, el, tolerance, state.scene)) {
                 hit = id;
                 break;
             }
@@ -408,6 +460,8 @@ export function BoardCanvas({
                     viewport={viewport}
                     onCommit={textEditor.commitText}
                     onCancel={textEditor.cancel}
+                    onColorChange={textEditor.setSessionColor}
+                    availableColors={EXCALIDRAW_STROKE_COLORS}
                 />
             )}
             {uploadError && (

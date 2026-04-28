@@ -20,6 +20,15 @@ export interface TextEditorProps {
     onCommit: (content: string) => void;
     /** Called on Escape only — discard intent, no element changes. */
     onCancel: () => void;
+    /**
+     * When set, renders an inline color palette above the textarea. Clicking
+     * a swatch calls `onColorChange(color)` and updates the displayed color
+     * live so the user sees the change while typing — no commit/re-select
+     * round-trip needed.
+     */
+    onColorChange?: (color: string) => void;
+    /** Color swatches to render in the palette. Ignored if `onColorChange` is unset. */
+    availableColors?: readonly string[];
     className?: string;
 }
 
@@ -40,6 +49,8 @@ export function TextEditor({
     initialSize,
     onCommit,
     onCancel,
+    onColorChange,
+    availableColors,
     className,
 }: TextEditorProps) {
     const [content, setContent] = useState(initialContent);
@@ -115,47 +126,88 @@ export function TextEditor({
         onCommit(content);
     };
 
+    const showPalette = Boolean(onColorChange && availableColors && availableColors.length > 0);
+
     return (
-        <textarea
-            ref={editorRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
-            className={className}
-            spellCheck={false}
-            style={{
-                position: 'absolute',
-                left: screen.x,
-                top: screen.y,
-                minWidth,
-                minHeight,
-                fontFamily: mergedStyle.fontFamily,
-                fontSize: mergedStyle.fontSize * viewport.zoom,
-                fontWeight: mergedStyle.fontWeight,
-                fontStyle: mergedStyle.fontStyle,
-                color: mergedStyle.color,
-                opacity: mergedStyle.opacity,
-                textAlign: mergedStyle.textAlign,
-                lineHeight: 1.3,
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                padding: 0,
-                margin: 0,
-                resize: 'none',
-                // `pre` (not `pre-wrap`) so the editor never inserts visual
-                // line breaks the renderer can't reproduce — the canvas
-                // text renderer splits on `\n` only and has no soft-wrap, so
-                // wrapping in the textarea would silently disappear on
-                // commit. Excalidraw model: lines extend horizontally; user
-                // presses Shift+Enter for explicit newlines. overflow:visible
-                // lets the textarea grow beyond its min-width.
-                overflow: 'visible',
-                whiteSpace: 'pre',
-                zIndex: 1000,
-                pointerEvents: 'auto',
-            }}
-        />
+        <>
+            <textarea
+                ref={editorRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                className={className}
+                spellCheck={false}
+                style={{
+                    position: 'absolute',
+                    left: screen.x,
+                    top: screen.y,
+                    minWidth,
+                    minHeight,
+                    fontFamily: mergedStyle.fontFamily,
+                    fontSize: mergedStyle.fontSize * viewport.zoom,
+                    fontWeight: mergedStyle.fontWeight,
+                    fontStyle: mergedStyle.fontStyle,
+                    color: mergedStyle.color,
+                    opacity: mergedStyle.opacity,
+                    textAlign: mergedStyle.textAlign,
+                    lineHeight: 1.3,
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    padding: 0,
+                    margin: 0,
+                    resize: 'none',
+                    // `pre` (not `pre-wrap`) so the editor never inserts visual
+                    // line breaks the renderer can't reproduce — the canvas
+                    // text renderer splits on `\n` only and has no soft-wrap, so
+                    // wrapping in the textarea would silently disappear on
+                    // commit. Excalidraw model: lines extend horizontally; user
+                    // presses Shift+Enter for explicit newlines. overflow:visible
+                    // lets the textarea grow beyond its min-width.
+                    overflow: 'visible',
+                    whiteSpace: 'pre',
+                    zIndex: 1000,
+                    pointerEvents: 'auto',
+                }}
+            />
+            {showPalette && (
+                <div
+                    className="bk-pill bk-swatch-row"
+                    role="toolbar"
+                    aria-label="Text color"
+                    style={{
+                        position: 'absolute',
+                        // Anchor above the textarea. 36px clears the typical
+                        // line height plus a small gap; the palette stays
+                        // inside the canvas viewport because consumers wrap
+                        // BoardCanvas in an overflow-hidden container.
+                        left: screen.x,
+                        top: screen.y - 36,
+                        zIndex: 1001,
+                        padding: 4,
+                        gap: 4,
+                    }}
+                    onMouseDown={(e) => {
+                        // Prevent the textarea from blurring + committing when
+                        // the user clicks a swatch — without this the editor
+                        // would close before the color change applied.
+                        e.preventDefault();
+                    }}
+                >
+                    {availableColors!.map((c) => (
+                        <button
+                            key={c}
+                            type="button"
+                            className="bk-swatch"
+                            style={{ background: c }}
+                            data-selected={c === mergedStyle.color}
+                            aria-label={`Color ${c}`}
+                            onClick={() => onColorChange!(c)}
+                        />
+                    ))}
+                </div>
+            )}
+        </>
     );
 }

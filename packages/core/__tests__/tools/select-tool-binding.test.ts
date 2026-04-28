@@ -92,12 +92,14 @@ describe('SelectTool — binding propagation on move', () => {
         const scene: SceneState = loadElements([a, b, arrow]);
         const tool = freshTool();
 
-        // Click shape A (selecting it via hit-test).
-        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 30 }), scene);
+        // Click shape A on its top edge — DEFAULT_SHAPE_STYLE has fill.type
+        // 'none', so the new shape-aware hit-test only matches on the stroke,
+        // not the transparent interior. (50, 0) is on the top edge.
+        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 0 }), scene);
         // Drag right by 50 px (past the 5 px arm threshold).
-        tool.onPointerMove(makeEvent('pointerMove', { x: 100, y: 30 }), scene);
+        tool.onPointerMove(makeEvent('pointerMove', { x: 100, y: 0 }), scene);
         const result = tool.onPointerUp(
-            makeEvent('pointerUp', { x: 100, y: 30 }),
+            makeEvent('pointerUp', { x: 100, y: 0 }),
             scene,
         );
 
@@ -120,10 +122,12 @@ describe('SelectTool — binding propagation on move', () => {
         const scene: SceneState = loadElements([a, arrow]);
         const tool = freshTool();
 
-        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 30 }), scene);
-        tool.onPointerMove(makeEvent('pointerMove', { x: 100, y: 30 }), scene);
+        // Click on shape A's top stroke (transparent fill — interior is
+        // see-through to hit-tests).
+        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 0 }), scene);
+        tool.onPointerMove(makeEvent('pointerMove', { x: 100, y: 0 }), scene);
         const result = tool.onPointerUp(
-            makeEvent('pointerUp', { x: 100, y: 30 }),
+            makeEvent('pointerUp', { x: 100, y: 0 }),
             scene,
         );
         const ids = (result.mutations ?? []).map((m) => m.elementId).sort();
@@ -140,9 +144,10 @@ describe('SelectTool — binding propagation on move', () => {
         const scene: SceneState = loadElements([a, b, arrow]);
         const tool = freshTool();
 
-        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 30 }), scene);
+        // Click on shape A's top stroke (transparent fill — see test 1).
+        tool.onPointerDown(makeEvent('pointerDown', { x: 50, y: 0 }), scene);
         const result = tool.onPointerMove(
-            makeEvent('pointerMove', { x: 100, y: 30 }),
+            makeEvent('pointerMove', { x: 100, y: 0 }),
             scene,
         );
         expect(result.preview).toBeDefined();

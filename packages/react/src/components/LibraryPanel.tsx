@@ -96,8 +96,13 @@ export function LibraryPanel({ className }: LibraryPanelProps) {
         store.setSelection(new Set(newIds));
     }, [store]);
 
+    // Wrapper is inline-block + relative so the button stays at its natural
+    // 36×36 size (anchoring the consumer's absolute positioning) and the
+    // panel floats below as `position: absolute`. Without this, when the
+    // 240px panel mounts as a sibling of the button, the consumer's
+    // top-right wrapper grows to fit the panel and drags the button left.
     return (
-        <>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
             <Tooltip label="Library" side="bottom">
                 <button
                     type="button"
@@ -110,7 +115,11 @@ export function LibraryPanel({ className }: LibraryPanelProps) {
                 </button>
             </Tooltip>
             {open && (
-                <aside className={`bk-library-panel ${className ?? ''}`.trim()} aria-label="Library">
+                <aside
+                    className={`bk-library-panel ${className ?? ''}`.trim()}
+                    aria-label="Library"
+                    style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0 }}
+                >
                     <header className="bk-library-header">
                         <span style={{ fontWeight: 600 }}>Library</span>
                         <Tooltip label="Close library" side="bottom">
@@ -171,7 +180,7 @@ export function LibraryPanel({ className }: LibraryPanelProps) {
                     ))}
                 </aside>
             )}
-        </>
+        </div>
     );
 }
 

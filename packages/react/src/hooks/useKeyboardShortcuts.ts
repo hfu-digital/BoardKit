@@ -78,13 +78,16 @@ export function useKeyboardShortcuts(): void {
                 return;
             }
 
-            // Select all: Ctrl+A
+            // Select all: Ctrl+A. Scope to the active page so a multi-page
+            // board doesn't end up with selection chrome on hidden elements.
             if (isCtrl && e.key === 'a') {
                 e.preventDefault();
-                const { scene } = store.getState();
-                store.setSelection(
-                    new Set(scene.elements.keys()),
-                );
+                const { scene, activePageId } = store.getState();
+                const ids = new Set<string>();
+                for (const [id, el] of scene.elements) {
+                    if (el.pageId === activePageId) ids.add(id);
+                }
+                store.setSelection(ids);
                 return;
             }
 
