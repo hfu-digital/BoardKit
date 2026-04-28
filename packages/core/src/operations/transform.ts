@@ -70,6 +70,25 @@ export function resizeElement(element: Element, newBounds: Rect): Element {
         }));
     }
 
+    // Scale text fontSize so resize handles actually visibly change the text,
+    // not just the bounding box. Use the smaller axis ratio to avoid
+    // distortion (text is height-driven; using min(scaleX, scaleY) keeps
+    // proportional scaling without overshooting on width-only drags).
+    if (
+        element.type === 'text' &&
+        oldBounds &&
+        oldBounds.width > 0 &&
+        oldBounds.height > 0
+    ) {
+        const scaleX = newBounds.width / oldBounds.width;
+        const scaleY = newBounds.height / oldBounds.height;
+        const scale = Math.min(scaleX, scaleY);
+        const style = newData.style as Record<string, unknown> | undefined;
+        if (style && typeof style.fontSize === 'number') {
+            newData.style = { ...style, fontSize: style.fontSize * scale };
+        }
+    }
+
     return { ...element, data: newData, updatedAt: now } as Element;
 }
 

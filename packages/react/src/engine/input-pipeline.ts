@@ -9,7 +9,16 @@ export class InputPipeline {
     private attached = false;
 
     onInput: ((event: InputEvent) => void) | null = null;
-    onViewportChange: ((gesture: 'pan' | 'zoom', delta: Point | number) => void) | null = null;
+    /**
+     * Pan: `delta` is `{ x, y }` in screen pixels. `cursor` is unused.
+     * Zoom: `delta` is a unit-less multiplier (positive = zoom in). `cursor`
+     *       is the screen-space pointer position (relative to canvas) — used
+     *       as the anchor for `zoomToPoint` so the world point under the
+     *       cursor stays under the cursor across zoom levels.
+     */
+    onViewportChange:
+        | ((gesture: 'pan' | 'zoom', delta: Point | number, cursor?: Point) => void)
+        | null = null;
 
     private boundHandlers: {
         pointerdown: (e: PointerEvent) => void;
@@ -199,6 +208,11 @@ export class InputPipeline {
     private handleWheel(e: WheelEvent): void {
         e.preventDefault();
         const delta = -e.deltaY * 0.001;
-        this.onViewportChange?.('zoom', delta);
+        const rect = this.canvas.getBoundingClientRect();
+        const cursor: Point = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
+        this.onViewportChange?.('zoom', delta, cursor);
     }
 }

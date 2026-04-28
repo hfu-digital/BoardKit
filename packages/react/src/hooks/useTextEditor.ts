@@ -112,6 +112,22 @@ export function useTextEditor(options?: { readOnly?: boolean }): UseTextEditorRe
         };
     }, [readOnly, store, toolRegistry, updateSession]);
 
+    // Clear any open editor session when the active tool changes away from
+    // 'text'. Without this, a rapid tool switch (e.g. user opens text editor
+    // then immediately presses 'r' for rectangle) unmounts the textarea
+    // before its blur fires, so commitText/cancel never run and sessionRef
+    // stays stuck non-null — which then makes ALL future text-tool clicks
+    // no-op via the early-return guard at the top of the TextTool handler.
+    useEffect(() => {
+        if (readOnly) return;
+        return store.subscribe('tool', () => {
+            const activeTool = store.getState().activeTool;
+            if (activeTool !== 'text' && sessionRef.current) {
+                updateSession(null);
+            }
+        });
+    }, [readOnly, store, updateSession]);
+
     const beginEditExternal = useCallback(
         (elementId: string, _position: Point) => {
             if (readOnly) return;
@@ -153,6 +169,20 @@ export function useTextEditor(options?: { readOnly?: boolean }): UseTextEditorRe
                 const now = new Date().toISOString();
                 const pageId = store.getState().activePageId ?? '';
                 const userId = config.userId ?? '';
+                if (pageId === '') {
+                    // Pages haven't loaded yet — the server's flushPending
+                    // would silently drop a mutation with an empty pageId,
+                    // so don't even create the element locally. The user
+                    // will lose the keystrokes but the alternative is silent
+                    // data loss on reload, which is worse.
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        '[boardkit] dropped text creation: activePageId not loaded yet',
+                    );
+                    updateSession(null);
+                    store.setActiveTool('select');
+                    return;
+                }
                 const element: TextElement = {
                     id: session.elementId,
                     pageId,
@@ -240,9 +270,10 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
  * Compute the world-space size of `content` rendered with `style`. Matches the
  * rendering done by text.renderer.ts (lineHeight = fontSize * 1.3) so the
  * stored bounds align with what the user sees on canvas — critical for the
- * double-click hit-test on multi-line text.
+ * double-click hit-test on multi-line text and for selection-chrome
+ * accuracy after font-size changes via PropertiesPanel.
  */
-function measureText(
+export function measureText(
     content: string,
     style: TextStyle,
 ): { width: number; height: number } {

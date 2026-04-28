@@ -235,7 +235,7 @@ export function BoardCanvas({
             }
         };
 
-        pipeline.onViewportChange = (gesture, delta) => {
+        pipeline.onViewportChange = (gesture, delta, cursor) => {
             if (gesture === 'pan') {
                 const d = delta as { x: number; y: number };
                 store.updateViewport((vp) => ({
@@ -247,9 +247,15 @@ export function BoardCanvas({
                 }));
             } else if (gesture === 'zoom') {
                 const zoomDelta = delta as number;
-                store.updateViewport((vp) =>
-                    zoomToPoint(vp, { x: canvas.width / 2, y: canvas.height / 2 }, zoomDelta),
-                );
+                // Anchor zoom on the cursor so the world point under the
+                // pointer stays under the pointer. Falls back to canvas
+                // center if no cursor was provided (e.g. programmatic zoom).
+                const rect = canvas.getBoundingClientRect();
+                const anchor = cursor ?? {
+                    x: rect.width / 2,
+                    y: rect.height / 2,
+                };
+                store.updateViewport((vp) => zoomToPoint(vp, anchor, zoomDelta));
             }
         };
 

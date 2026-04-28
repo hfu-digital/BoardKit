@@ -16,6 +16,13 @@ export interface BoardKitConfig {
     wsUrl?: string;
     authToken?: string;
     /**
+     * Share-link token. When the viewer accessed the board via a share link
+     * rather than as an authenticated member, set this so authenticated
+     * server endpoints (asset GET, etc.) can authorise the request via
+     * `x-share-token` instead of the missing Bearer token.
+     */
+    shareToken?: string;
+    /**
      * Authenticated user id. Stamped on element.createdBy when tools emit
      * `create` mutations so the server (and other clients) can attribute
      * the element. Without it, createdBy is empty string and attribution
@@ -85,6 +92,7 @@ export function BoardKitProvider({ config, children }: BoardKitProviderProps) {
         configureAssetResolver({
             apiUrl: config.apiUrl,
             getAuthToken: () => config.authToken,
+            getShareToken: () => config.shareToken,
         });
         const unsubAsset = subscribeAssetReady(() => rendererRef.current?.invalidateScene());
         const unsubImage = subscribeImageReady(() => rendererRef.current?.invalidateScene());
@@ -92,7 +100,7 @@ export function BoardKitProvider({ config, children }: BoardKitProviderProps) {
             unsubAsset();
             unsubImage();
         };
-    }, [config.apiUrl, config.authToken]);
+    }, [config.apiUrl, config.authToken, config.shareToken]);
 
     useEffect(() => {
         return () => {

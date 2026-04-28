@@ -74,14 +74,18 @@ export function TextEditor({
         return () => cancelAnimationFrame(raf);
     }, []);
 
-    // Auto-grow height to fit content. Run after every render so wrapping
-    // (driven by zoom or width changes) re-measures.
+    // Auto-grow height + width to fit content. With `whiteSpace: 'pre'`
+    // single lines extend horizontally without wrapping, so we need to
+    // grow width too — otherwise long content gets clipped at minWidth and
+    // the user can't see what they typed.
     useLayoutEffect(() => {
         const el = editorRef.current;
         if (!el) return;
         el.style.height = 'auto';
         el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
-    }, [content, minHeight]);
+        el.style.width = 'auto';
+        el.style.width = `${Math.max(el.scrollWidth, minWidth)}px`;
+    }, [content, minHeight, minWidth]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // Stop bubbling to the global window keydown listener in
@@ -140,9 +144,15 @@ export function TextEditor({
                 padding: 0,
                 margin: 0,
                 resize: 'none',
-                overflow: 'hidden',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
+                // `pre` (not `pre-wrap`) so the editor never inserts visual
+                // line breaks the renderer can't reproduce — the canvas
+                // text renderer splits on `\n` only and has no soft-wrap, so
+                // wrapping in the textarea would silently disappear on
+                // commit. Excalidraw model: lines extend horizontally; user
+                // presses Shift+Enter for explicit newlines. overflow:visible
+                // lets the textarea grow beyond its min-width.
+                overflow: 'visible',
+                whiteSpace: 'pre',
                 zIndex: 1000,
                 pointerEvents: 'auto',
             }}

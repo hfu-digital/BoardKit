@@ -27,6 +27,12 @@ interface Entry {
 interface ResolverConfig {
     apiUrl: string;
     getAuthToken: () => string | undefined;
+    /**
+     * Optional share-link token. When set (and there's no auth token), the
+     * resolver passes it to the asset endpoint via `x-share-token` so a
+     * share-link viewer can fetch otherwise-auth-gated assets.
+     */
+    getShareToken?: () => string | undefined;
 }
 
 const RETRY_BACKOFF_MS = 5_000;
@@ -85,9 +91,16 @@ export function getResolvedAssetUrl(url: string): string | undefined {
     if (url.startsWith('data:') || url.startsWith('blob:')) {
         return url;
     }
-    // If we have no config or no auth token, fall back to direct loading —
-    // works for genuinely public URLs and for tests without a provider.
-    if (!config || !config.getAuthToken()) {
+    if (!config) {
+        return url;
+    }
+    // If neither auth nor share token is available, fall back to direct
+    // loading — works for genuinely public URLs and for tests without a
+    // provider. With either token we go through fetchAsset to attach the
+    // appropriate header.
+    const hasAuth = !!config.getAuthToken();
+    const hasShare = !!config.getShareToken?.();
+    if (!hasAuth && !hasShare) {
         return url;
     }
 
@@ -113,8 +126,10 @@ async function fetchAsset(url: string): Promise<void> {
     cache.set(url, { state: 'loading' });
     try {
         const token = config.getAuthToken();
+        const shareToken = config.getShareToken?.();
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
+        else if (shareToken) headers['x-share-token'] = shareToken;
         const res = await fetch(url, { headers });
         if (!res.ok) {
             throw new Error(`asset fetch ${url} returned ${res.status}`);

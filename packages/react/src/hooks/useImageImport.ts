@@ -27,6 +27,19 @@ export function useImageImport(boardId: string): UseImageImportResult {
             const { viewport, activePageId } = store.getState();
             const pageId = activePageId ?? '';
 
+            if (pageId === '') {
+                // Pages haven't loaded yet — the server's flushPending drops
+                // mutations with empty pageId. Skipping creation entirely
+                // avoids a local-only image that disappears on reload (the
+                // upload itself succeeded, leaving an orphan asset, but at
+                // least the user notices their image didn't appear).
+                // eslint-disable-next-line no-console
+                console.warn(
+                    '[boardkit] dropped image creation: activePageId not loaded yet',
+                );
+                return;
+            }
+
             // Place the image at the center of the viewport
             const centerX = (window.innerWidth / 2 - viewport.offset.x) / viewport.zoom;
             const centerY = (window.innerHeight / 2 - viewport.offset.y) / viewport.zoom;
@@ -44,7 +57,11 @@ export function useImageImport(boardId: string): UseImageImportResult {
                 pageId,
                 type: 'image',
                 zIndex: Date.now(),
-                createdBy: '',
+                // Without a non-empty createdBy the element fails core's
+                // validator and persistence orphans the uploaded asset on
+                // the server. config.userId is the authenticated viewer id
+                // and matches the convention used by useTextEditor.
+                createdBy: config.userId ?? '',
                 createdAt: now,
                 updatedAt: now,
                 data: {
@@ -74,7 +91,7 @@ export function useImageImport(boardId: string): UseImageImportResult {
             };
             store.enqueueOutboundMutations([mutation]);
         },
-        [store],
+        [store, config.userId],
     );
 
     const loadImageDimensions = useCallback(

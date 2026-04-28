@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useSelection } from '../hooks/useSelection';
 import { useElementMutations } from '../hooks/useElementMutations';
+import { measureText } from '../hooks/useTextEditor';
+import { DEFAULT_TEXT_STYLE } from '@hfu.digital/boardkit-core';
 import { EXCALIDRAW_PALETTE } from '../styles/excalidraw-palette';
 import { HFU_PALETTE } from '../styles/hfu-palette';
 
@@ -214,7 +216,27 @@ export function PropertiesPanel({ className }: PropertiesPanelProps) {
                         onChange={(v) => {
                             const fontSize = Number(v);
                             for (const el of selectedElements) {
-                                patchElement(el.id, { style: { fontSize } } as any);
+                                if (el.type === 'text') {
+                                    // Re-measure size + bounds whenever
+                                    // fontSize changes so the selection
+                                    // chrome (which reads bounds) stays in
+                                    // sync with the rendered text.
+                                    const text = el as TextElement;
+                                    const nextStyle = { ...DEFAULT_TEXT_STYLE, ...text.data.style, fontSize };
+                                    const size = measureText(text.data.content, nextStyle);
+                                    patchElement(el.id, {
+                                        style: { fontSize },
+                                        size,
+                                        bounds: {
+                                            x: text.data.position.x,
+                                            y: text.data.position.y,
+                                            width: size.width,
+                                            height: size.height,
+                                        },
+                                    } as any);
+                                } else {
+                                    patchElement(el.id, { style: { fontSize } } as any);
+                                }
                             }
                         }}
                     />
