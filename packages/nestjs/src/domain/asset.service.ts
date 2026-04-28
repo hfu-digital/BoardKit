@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+    Injectable,
+    PayloadTooLargeException,
+    UnsupportedMediaTypeException,
+} from '@nestjs/common';
 import type { Asset } from '@hfu.digital/boardkit-core';
 import { LIMITS } from '@hfu.digital/boardkit-core';
 import {
@@ -36,7 +40,7 @@ export class AssetService {
         // Validate file size
         const sizeMb = meta.sizeBytes / (1024 * 1024);
         if (sizeMb > this.limits.maxAssetSizeMb) {
-            throw new Error(
+            throw new PayloadTooLargeException(
                 `Asset size ${sizeMb.toFixed(2)}MB exceeds limit of ${this.limits.maxAssetSizeMb}MB`,
             );
         }
@@ -46,22 +50,29 @@ export class AssetService {
         const totalMb =
             (currentUsage + meta.sizeBytes) / (1024 * 1024);
         if (totalMb > this.limits.maxBoardSizeMb) {
-            throw new Error(
+            throw new PayloadTooLargeException(
                 `Board storage would exceed limit of ${this.limits.maxBoardSizeMb}MB`,
             );
         }
 
-        // Validate mime type
+        // Validate mime type. Throwing a NestJS HttpException (415) instead of
+        // a plain Error so the consumer's global exception filter routes this
+        // as a user-input failure — not a 500 with Sentry/error_log writes.
         const allowedTypes = [
             'image/png',
             'image/jpeg',
             'image/gif',
             'image/webp',
             'image/svg+xml',
+            'image/avif',
+            'image/heic',
+            'image/heif',
+            'image/bmp',
+            'image/tiff',
             'application/pdf',
         ];
         if (!allowedTypes.includes(meta.mimeType)) {
-            throw new Error(
+            throw new UnsupportedMediaTypeException(
                 `Unsupported file type: ${meta.mimeType}`,
             );
         }

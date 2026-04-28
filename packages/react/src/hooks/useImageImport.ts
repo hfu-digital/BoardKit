@@ -15,12 +15,17 @@ export interface UseImageImportResult {
     openFilePicker: () => void;
     isDragging: boolean;
     isUploading: boolean;
+    /** Last upload error message — server's reason (e.g. unsupported file type) or null. */
+    uploadError: string | null;
+    /** Clear the upload error (e.g. when user dismisses the toast). */
+    clearUploadError: () => void;
 }
 
 export function useImageImport(boardId: string): UseImageImportResult {
     const { store, config } = useBoardKit();
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
 
     const createImageElement = useCallback(
         (assetId: string, url: string, width: number, height: number) => {
@@ -123,6 +128,7 @@ export function useImageImport(boardId: string): UseImageImportResult {
     const importImage = useCallback(
         async (file: File) => {
             setIsUploading(true);
+            setUploadError(null);
             try {
                 // Read file as base64
                 const base64 = await new Promise<string>((resolve, reject) => {
@@ -161,7 +167,22 @@ export function useImageImport(boardId: string): UseImageImportResult {
                 );
 
                 if (!res.ok) {
-                    throw new Error(`Upload failed: ${res.status}`);
+                    // The HFU api wraps errors as { error: { code, message } }.
+                    // Prefer that message so users see "Unsupported file type:
+                    // image/avif" instead of "Upload failed: 415".
+                    let msg = `Upload failed (${res.status})`;
+                    try {
+                        const body = await res.json();
+                        const serverMsg = body?.error?.message ?? body?.message;
+                        if (typeof serverMsg === 'string' && serverMsg.length > 0) {
+                            msg = serverMsg;
+                        }
+                    } catch {
+                        // Body wasn't JSON — keep the generic fallback.
+                    }
+                    const error = new Error(msg);
+                    setUploadError(msg);
+                    throw error;
                 }
 
                 const asset = await res.json();
@@ -186,12 +207,24 @@ export function useImageImport(boardId: string): UseImageImportResult {
                 URL.revokeObjectURL(objectUrl);
 
                 createImageElement(assetId, url, dimensions.width, dimensions.height);
+            } catch (error) {
+                // Non-HTTP errors (FileReader, missing url, network) — surface
+                // through the same uploadError channel as 4xx responses. The
+                // !res.ok branch above also throws, and re-setting to the same
+                // message here is harmless.
+                const msg = error instanceof Error ? error.message : 'Upload failed';
+                setUploadError(msg);
+                throw error;
             } finally {
                 setIsUploading(false);
             }
         },
         [boardId, config.apiUrl, config.authToken, createImageElement, loadImageDimensions],
     );
+
+    const clearUploadError = useCallback(() => {
+        setUploadError(null);
+    }, []);
 
     const importFromUrl = useCallback(
         async (url: string) => {
@@ -315,5 +348,13 @@ export function useImageImport(boardId: string): UseImageImportResult {
         };
     }, [importImage]);
 
-    return { importImage, importFromUrl, openFilePicker, isDragging, isUploading };
+    return {
+        importImage,
+        importFromUrl,
+        openFilePicker,
+        isDragging,
+        isUploading,
+        uploadError,
+        clearUploadError,
+    };
 }

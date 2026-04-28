@@ -59,7 +59,7 @@ export function BoardCanvas({
     // without the consumer wiring useImageImport themselves. When the user
     // selects the Image tool, we open the file picker and snap back to Select
     // so the toolbar doesn't stay in a weird "armed" state.
-    const { openFilePicker } = useImageImport(boardId);
+    const { openFilePicker, uploadError, clearUploadError } = useImageImport(boardId);
     useEffect(() => {
         return store.subscribe('tool', () => {
             if (store.getState().activeTool === 'image') {
@@ -409,6 +409,34 @@ export function BoardCanvas({
                     onCommit={textEditor.commitText}
                     onCancel={textEditor.cancel}
                 />
+            )}
+            {uploadError && (
+                <div
+                    role="alert"
+                    className="bk-pill"
+                    style={{
+                        position: 'absolute',
+                        top: 16,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 10,
+                        gap: 12,
+                        borderColor: 'var(--bk-danger)',
+                        color: 'var(--bk-danger)',
+                        maxWidth: 'calc(100% - 32px)',
+                    }}
+                >
+                    <span style={{ fontSize: 13 }}>{uploadError}</span>
+                    <button
+                        type="button"
+                        onClick={clearUploadError}
+                        aria-label="Dismiss"
+                        className="bk-icon-btn"
+                        style={{ width: 24, height: 24, color: 'inherit' }}
+                    >
+                        ×
+                    </button>
+                </div>
             )}
         </div>
     );
