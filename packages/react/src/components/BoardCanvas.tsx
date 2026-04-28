@@ -213,6 +213,21 @@ export function BoardCanvas({
                     if (sendable.length > 0) {
                         store.enqueueOutboundMutations(sendable);
                     }
+                    // Mutations imply the gesture committed (drag-end, resize-
+                    // end, etc.) and the static layer is about to redraw with
+                    // the new positions. Clear the cached preview so the
+                    // move-time ghost doesn't linger on top of the real
+                    // element via the interactive layer's rAF loop.
+                    renderer.renderInteractiveLayer(
+                        [],
+                        Array.from(store.getState().cursors.values()),
+                        [],
+                        {
+                            viewport: store.getState().viewport,
+                            selectedIds: store.getState().selectedIds,
+                            activeTool: store.getState().activeTool,
+                        },
+                    );
                 }
                 if (result.cursor) {
                     canvas.style.cursor = result.cursor;
@@ -246,11 +261,23 @@ export function BoardCanvas({
         };
     }, [renderer, store, toolRegistry, readOnly]);
 
-    // Sync viewport to pipeline
+    // Sync viewport to pipeline + renderer. The renderer's rAF loop draws
+    // both layers using the viewport stored on its renderContext — that
+    // context is only updated when renderStaticLayer / renderInteractiveLayer
+    // is called. invalidateScene alone bumps the redraw nonce but leaves the
+    // cached viewport stale, so the canvas would redraw at the OLD zoom.
+    // Pushing fresh elements + context here keeps the static layer in sync
+    // with pan/zoom (matches what the 'scene' subscription does on mutation).
     useEffect(() => {
         return store.subscribe('viewport', () => {
-            pipelineRef.current?.updateViewport(store.getState().viewport);
-            renderer.invalidateScene();
+            const state = store.getState();
+            pipelineRef.current?.updateViewport(state.viewport);
+            const elements = Array.from(state.scene.elements.values());
+            renderer.renderStaticLayer(elements, {
+                viewport: state.viewport,
+                selectedIds: state.selectedIds,
+                activeTool: state.activeTool,
+            });
         });
     }, [store, renderer]);
 

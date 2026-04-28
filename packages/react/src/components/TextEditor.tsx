@@ -44,6 +44,11 @@ export function TextEditor({
 }: TextEditorProps) {
     const [content, setContent] = useState(initialContent);
     const editorRef = useRef<HTMLTextAreaElement>(null);
+    // Blur fires synchronously during the initial focus race when the parent
+    // pointerdown is still bubbling. We don't want that to be treated as the
+    // user dismissing the editor, so blur is gated behind this flag — flipped
+    // to true after one rAF tick (when the focus has truly settled).
+    const settledRef = useRef(false);
 
     const mergedStyle = { ...DEFAULT_TEXT_STYLE, ...textStyle };
     const screen = worldToScreen(position, viewport);
@@ -64,6 +69,7 @@ export function TextEditor({
             if (document.activeElement !== el) {
                 el.focus();
             }
+            settledRef.current = true;
         });
         return () => cancelAnimationFrame(raf);
     }, []);
@@ -95,8 +101,13 @@ export function TextEditor({
     };
 
     const handleBlur = () => {
-        // Always commit on blur — let the hook decide what empty content means
-        // (no-op for create, delete for edit). Cancel is reserved for Escape.
+        // Ignore blur during the initial-mount focus race — without this gate,
+        // a parent pointerdown handler that briefly steals focus would trigger
+        // an empty commit, which the hook treats as "user dismissed empty" and
+        // reverts the active tool back to Select. Once settled, blur means
+        // the user genuinely clicked away → commit (hook differentiates empty
+        // create vs empty edit).
+        if (!settledRef.current) return;
         onCommit(content);
     };
 

@@ -98,6 +98,16 @@ export function renderImage(
     }
 
     ctx.save();
+    // Compensate for any CSS filter applied to a canvas ancestor (e.g. the
+    // dark-mode `filter: invert(1) hue-rotate(180deg)` trick used by
+    // consumers to invert text/strokes/UI without re-theming). Photos look
+    // wrong under that filter; reapplying the same filter to the canvas
+    // pixels of the image cancels out (it's its own inverse), so users see
+    // natural image colours regardless of theme.
+    const compensatingFilter = getCompensatingFilter(ctx.canvas);
+    if (compensatingFilter !== 'none') {
+        ctx.filter = compensatingFilter;
+    }
     ctx.translate(position.x + size.width / 2, position.y + size.height / 2);
     ctx.rotate((rotation * Math.PI) / 180);
     try {
@@ -118,4 +128,21 @@ export function renderImage(
         entry.lastErrorAt = Date.now();
     }
     ctx.restore();
+}
+
+/**
+ * Walk up from the canvas through ancestors and return the first non-`none`
+ * computed `filter`. Returns 'none' if no ancestor applies a filter or if
+ * the canvas is detached from the DOM. Cached only by the browser's own
+ * style-resolution; called per-frame per-image but the work is cheap.
+ */
+function getCompensatingFilter(canvas: HTMLCanvasElement): string {
+    if (typeof window === 'undefined') return 'none';
+    let node: HTMLElement | null = canvas.parentElement;
+    while (node) {
+        const f = window.getComputedStyle(node).filter;
+        if (f && f !== 'none') return f;
+        node = node.parentElement;
+    }
+    return 'none';
 }
