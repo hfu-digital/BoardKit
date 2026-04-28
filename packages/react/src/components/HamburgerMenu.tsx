@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Menu, Download, Settings, BookOpen, ChevronRight } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 
 export interface HamburgerMenuProps {
     className?: string;
@@ -40,17 +41,18 @@ export function HamburgerMenu({ className, onExportClick, onHelpClick, onSetting
 
     return (
         <div ref={ref} className={`bk-hamburger ${className ?? ''}`.trim()}>
-            <button
-                type="button"
-                className="bk-icon-btn bk-pill"
-                style={{ width: 40, height: 40 }}
-                onClick={() => setOpen((v) => !v)}
-                aria-pressed={open}
-                aria-label="Open menu"
-                title="Menu"
-            >
-                <Menu />
-            </button>
+            <Tooltip label="Menu" side="right">
+                <button
+                    type="button"
+                    className="bk-icon-btn bk-pill"
+                    style={{ width: 40, height: 40 }}
+                    onClick={() => setOpen((v) => !v)}
+                    aria-pressed={open}
+                    aria-label="Open menu"
+                >
+                    <Menu />
+                </button>
+            </Tooltip>
             {open && (
                 <div className="bk-context-menu" role="menu" style={{ position: 'absolute', marginTop: 6 }}>
                     {onExportClick && (

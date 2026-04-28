@@ -23,6 +23,7 @@ import { useElementMutations } from '../hooks/useElementMutations';
 import { measureText } from '../hooks/useTextEditor';
 import { DEFAULT_TEXT_STYLE } from '@hfu.digital/boardkit-core';
 import { EXCALIDRAW_PALETTE } from '../styles/excalidraw-palette';
+import { Tooltip } from './Tooltip';
 import { HFU_PALETTE } from '../styles/hfu-palette';
 
 export interface PropertiesPanelProps {
@@ -394,18 +395,26 @@ function LayerActions({
         <div className="bk-prop-section">
             <span className="bk-prop-label">Layers</span>
             <div className="bk-control-row" role="group" aria-label="Layer order">
-                <button type="button" className="bk-control-btn" title="Send to back" onClick={() => reorder(ids, 'back')}>
-                    <ArrowDownToLine size={14} />
-                </button>
-                <button type="button" className="bk-control-btn" title="Send backward" onClick={() => reorder(ids, 'backward')}>
-                    <ChevronDown size={14} />
-                </button>
-                <button type="button" className="bk-control-btn" title="Bring forward" onClick={() => reorder(ids, 'forward')}>
-                    <ChevronUp size={14} />
-                </button>
-                <button type="button" className="bk-control-btn" title="Bring to front" onClick={() => reorder(ids, 'front')}>
-                    <ArrowUpToLine size={14} />
-                </button>
+                <Tooltip label="Send to back" side="top">
+                    <button type="button" className="bk-control-btn" aria-label="Send to back" onClick={() => reorder(ids, 'back')}>
+                        <ArrowDownToLine size={14} />
+                    </button>
+                </Tooltip>
+                <Tooltip label="Send backward" side="top">
+                    <button type="button" className="bk-control-btn" aria-label="Send backward" onClick={() => reorder(ids, 'backward')}>
+                        <ChevronDown size={14} />
+                    </button>
+                </Tooltip>
+                <Tooltip label="Bring forward" side="top">
+                    <button type="button" className="bk-control-btn" aria-label="Bring forward" onClick={() => reorder(ids, 'forward')}>
+                        <ChevronUp size={14} />
+                    </button>
+                </Tooltip>
+                <Tooltip label="Bring to front" side="top">
+                    <button type="button" className="bk-control-btn" aria-label="Bring to front" onClick={() => reorder(ids, 'front')}>
+                        <ArrowUpToLine size={14} />
+                    </button>
+                </Tooltip>
             </div>
         </div>
     );
@@ -428,33 +437,39 @@ function ElementActions({
         <div className="bk-prop-section">
             <span className="bk-prop-label">Actions</span>
             <div className="bk-control-row" role="group" aria-label="Element actions">
-                <button
-                    type="button"
-                    className="bk-control-btn"
-                    title="Duplicate"
-                    onClick={onDuplicate}
-                    disabled={ids.length === 0}
-                >
-                    <Copy size={14} />
-                </button>
-                <button
-                    type="button"
-                    className="bk-control-btn"
-                    title={isLocked ? 'Unlock' : 'Lock'}
-                    onClick={onToggleLock}
-                    disabled={ids.length === 0}
-                >
-                    {isLocked ? <Unlock size={14} /> : <Lock size={14} />}
-                </button>
-                <button
-                    type="button"
-                    className="bk-control-btn"
-                    title="Delete"
-                    onClick={onDelete}
-                    disabled={ids.length === 0}
-                >
-                    <Trash2 size={14} />
-                </button>
+                <Tooltip label="Duplicate" shortcut="Ctrl+D" side="top">
+                    <button
+                        type="button"
+                        className="bk-control-btn"
+                        aria-label="Duplicate"
+                        onClick={onDuplicate}
+                        disabled={ids.length === 0}
+                    >
+                        <Copy size={14} />
+                    </button>
+                </Tooltip>
+                <Tooltip label={isLocked ? 'Unlock' : 'Lock'} side="top">
+                    <button
+                        type="button"
+                        className="bk-control-btn"
+                        aria-label={isLocked ? 'Unlock' : 'Lock'}
+                        onClick={onToggleLock}
+                        disabled={ids.length === 0}
+                    >
+                        {isLocked ? <Unlock size={14} /> : <Lock size={14} />}
+                    </button>
+                </Tooltip>
+                <Tooltip label="Delete" shortcut="Del" side="top">
+                    <button
+                        type="button"
+                        className="bk-control-btn"
+                        aria-label="Delete"
+                        onClick={onDelete}
+                        disabled={ids.length === 0}
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </Tooltip>
             </div>
         </div>
     );

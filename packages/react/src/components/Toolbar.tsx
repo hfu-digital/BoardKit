@@ -16,6 +16,7 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { useTool } from '../hooks/useTool';
+import { Tooltip } from './Tooltip';
 
 export interface ToolbarProps {
     className?: string;
@@ -67,17 +68,18 @@ export function Toolbar({ className }: ToolbarProps) {
                 return (
                     <React.Fragment key={tool.id}>
                         {showDivider && <span className="bk-divider" aria-hidden="true" />}
-                        <button
-                            type="button"
-                            className="bk-icon-btn"
-                            onClick={() => setTool(tool.id)}
-                            aria-pressed={activeTool === tool.id}
-                            aria-label={`${tool.label} (${tool.shortcut})`}
-                            title={`${tool.label} (${tool.shortcut})`}
-                        >
-                            <Icon aria-hidden="true" />
-                            <span className="bk-sr-only">{tool.label}</span>
-                        </button>
+                        <Tooltip label={tool.label} shortcut={tool.shortcut} side="top">
+                            <button
+                                type="button"
+                                className="bk-icon-btn"
+                                onClick={() => setTool(tool.id)}
+                                aria-pressed={activeTool === tool.id}
+                                aria-label={`${tool.label} (${tool.shortcut})`}
+                            >
+                                <Icon aria-hidden="true" />
+                                <span className="bk-sr-only">{tool.label}</span>
+                            </button>
+                        </Tooltip>
                     </React.Fragment>
                 );
             })}

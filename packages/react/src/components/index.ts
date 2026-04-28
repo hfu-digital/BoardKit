@@ -32,3 +32,5 @@ export { OnboardingTour } from './OnboardingTour';
 export type { OnboardingTourProps } from './OnboardingTour';
 export { HamburgerMenu } from './HamburgerMenu';
 export type { HamburgerMenuProps } from './HamburgerMenu';
+export { Tooltip } from './Tooltip';
+export type { TooltipProps } from './Tooltip';

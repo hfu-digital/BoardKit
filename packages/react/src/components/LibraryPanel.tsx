@@ -4,6 +4,7 @@ import type { Element, ElementMutation } from '@hfu.digital/boardkit-core';
 import { addElement } from '@hfu.digital/boardkit-core';
 import { parseExcalidrawLib, type ParsedLibrary, type ParsedLibraryItem } from '../lib/excalidrawlib-parser';
 import { useBoardKit } from '../context/BoardKitProvider';
+import { Tooltip } from './Tooltip';
 
 const STORAGE_KEY = 'bk-library:v1';
 
@@ -97,23 +98,26 @@ export function LibraryPanel({ className }: LibraryPanelProps) {
 
     return (
         <>
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={() => setOpen((v) => !v)}
-                aria-pressed={open}
-                aria-label="Toggle library"
-                title="Library"
-            >
-                <Library />
-            </button>
+            <Tooltip label="Library" side="bottom">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={() => setOpen((v) => !v)}
+                    aria-pressed={open}
+                    aria-label="Toggle library"
+                >
+                    <Library />
+                </button>
+            </Tooltip>
             {open && (
                 <aside className={`bk-library-panel ${className ?? ''}`.trim()} aria-label="Library">
                     <header className="bk-library-header">
                         <span style={{ fontWeight: 600 }}>Library</span>
-                        <button type="button" className="bk-icon-btn" onClick={() => setOpen(false)} aria-label="Close library">
-                            <X />
-                        </button>
+                        <Tooltip label="Close library" side="bottom">
+                            <button type="button" className="bk-icon-btn" onClick={() => setOpen(false)} aria-label="Close library">
+                                <X />
+                            </button>
+                        </Tooltip>
                     </header>
                     <label className="bk-library-import">
                         <Plus size={14} />
@@ -138,28 +142,29 @@ export function LibraryPanel({ className }: LibraryPanelProps) {
                         <section key={i} className="bk-library-section">
                             <div className="bk-library-section-header">
                                 <span>{lib.name}</span>
-                                <button
-                                    type="button"
-                                    className="bk-icon-btn"
-                                    onClick={() => setLibraries((prev) => prev.filter((_, idx) => idx !== i))}
-                                    aria-label={`Remove ${lib.name}`}
-                                    title={`Remove ${lib.name}`}
-                                    style={{ width: 22, height: 22 }}
-                                >
-                                    <X size={12} />
-                                </button>
+                                <Tooltip label={`Remove ${lib.name}`} side="left">
+                                    <button
+                                        type="button"
+                                        className="bk-icon-btn"
+                                        onClick={() => setLibraries((prev) => prev.filter((_, idx) => idx !== i))}
+                                        aria-label={`Remove ${lib.name}`}
+                                        style={{ width: 22, height: 22 }}
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </Tooltip>
                             </div>
                             <div className="bk-library-grid">
                                 {lib.items.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        className="bk-library-item"
-                                        title={`Insert ${item.name}`}
-                                        onClick={() => insertItem(item)}
-                                    >
-                                        {item.name}
-                                    </button>
+                                    <Tooltip key={item.id} label={`Insert ${item.name}`} side="top">
+                                        <button
+                                            type="button"
+                                            className="bk-library-item"
+                                            onClick={() => insertItem(item)}
+                                        >
+                                            {item.name}
+                                        </button>
+                                    </Tooltip>
                                 ))}
                             </div>
                         </section>

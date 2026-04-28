@@ -3,6 +3,7 @@ import { Minus, Plus, Undo, Redo, HelpCircle, FilePlus, X } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
 import { useHistory } from '../hooks/useHistory';
 import { usePageNavigation } from '../hooks/usePageNavigation';
+import { Tooltip } from './Tooltip';
 
 export interface BottomControlsProps {
     className?: string;
@@ -40,54 +41,59 @@ export function BottomControls({ className, onHelpClick, hidePages }: BottomCont
             role="toolbar"
             aria-label="Canvas controls"
         >
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={() => stepZoom(-1)}
-                title="Zoom out (Ctrl+−)"
-                aria-label="Zoom out"
-            >
-                <Minus />
-            </button>
-            <button
-                type="button"
-                className="bk-zoom-display"
-                onClick={resetZoom}
-                title="Reset zoom (Ctrl+0)"
-                aria-label="Reset zoom to 100%"
-            >
-                {Math.round(viewport.zoom * 100)}%
-            </button>
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={() => stepZoom(1)}
-                title="Zoom in (Ctrl+=)"
-                aria-label="Zoom in"
-            >
-                <Plus />
-            </button>
+            <Tooltip label="Zoom out" shortcut="Ctrl+−" side="top">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={() => stepZoom(-1)}
+                    aria-label="Zoom out"
+                >
+                    <Minus />
+                </button>
+            </Tooltip>
+            <Tooltip label="Reset zoom" shortcut="Ctrl+0" side="top">
+                <button
+                    type="button"
+                    className="bk-zoom-display"
+                    onClick={resetZoom}
+                    aria-label="Reset zoom to 100%"
+                >
+                    {Math.round(viewport.zoom * 100)}%
+                </button>
+            </Tooltip>
+            <Tooltip label="Zoom in" shortcut="Ctrl+=" side="top">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={() => stepZoom(1)}
+                    aria-label="Zoom in"
+                >
+                    <Plus />
+                </button>
+            </Tooltip>
             <span className="bk-divider" aria-hidden="true" />
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={undo}
-                disabled={!canUndo}
-                title="Undo (Ctrl+Z)"
-                aria-label="Undo"
-            >
-                <Undo />
-            </button>
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={redo}
-                disabled={!canRedo}
-                title="Redo (Ctrl+Y)"
-                aria-label="Redo"
-            >
-                <Redo />
-            </button>
+            <Tooltip label="Undo" shortcut="Ctrl+Z" side="top">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    aria-label="Undo"
+                >
+                    <Undo />
+                </button>
+            </Tooltip>
+            <Tooltip label="Redo" shortcut="Ctrl+Y" side="top">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    aria-label="Redo"
+                >
+                    <Redo />
+                </button>
+            </Tooltip>
             {!hidePages && pages.length > 0 && (
                 <>
                     <span className="bk-divider" aria-hidden="true" />
@@ -103,15 +109,16 @@ export function BottomControls({ className, onHelpClick, hidePages }: BottomCont
             {onHelpClick && (
                 <>
                     <span className="bk-divider" aria-hidden="true" />
-                    <button
-                        type="button"
-                        className="bk-icon-btn"
-                        onClick={onHelpClick}
-                        title="Help (?)"
-                        aria-label="Open help"
-                    >
-                        <HelpCircle />
-                    </button>
+                    <Tooltip label="Help" shortcut="?" side="top">
+                        <button
+                            type="button"
+                            className="bk-icon-btn"
+                            onClick={onHelpClick}
+                            aria-label="Open help"
+                        >
+                            <HelpCircle />
+                        </button>
+                    </Tooltip>
                 </>
             )}
         </div>
@@ -150,44 +157,47 @@ function PageNav({
                 const isActive = page.id === activePageId;
                 return (
                     <span key={page.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                        <button
-                            type="button"
-                            className="bk-control-btn"
-                            data-selected={isActive}
-                            aria-pressed={isActive}
-                            onClick={() => onSwitch(page.id)}
-                            style={{ minHeight: 28, paddingRight: pages.length > 1 ? 4 : 8 }}
-                            title={page.name}
-                        >
-                            {idx + 1}
-                        </button>
-                        {pages.length > 1 && (
+                        <Tooltip label={page.name} side="top">
                             <button
                                 type="button"
-                                className="bk-icon-btn"
-                                style={{ width: 22, height: 22 }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Delete page "${page.name}"?`)) onDelete(page.id);
-                                }}
-                                title={`Delete ${page.name}`}
-                                aria-label={`Delete page ${page.name}`}
+                                className="bk-control-btn"
+                                data-selected={isActive}
+                                aria-pressed={isActive}
+                                onClick={() => onSwitch(page.id)}
+                                style={{ minHeight: 28, paddingRight: pages.length > 1 ? 4 : 8 }}
                             >
-                                <X size={12} />
+                                {idx + 1}
                             </button>
+                        </Tooltip>
+                        {pages.length > 1 && (
+                            <Tooltip label={`Delete ${page.name}`} side="top">
+                                <button
+                                    type="button"
+                                    className="bk-icon-btn"
+                                    style={{ width: 22, height: 22 }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm(`Delete page "${page.name}"?`)) onDelete(page.id);
+                                    }}
+                                    aria-label={`Delete page ${page.name}`}
+                                >
+                                    <X size={12} />
+                                </button>
+                            </Tooltip>
                         )}
                     </span>
                 );
             })}
-            <button
-                type="button"
-                className="bk-icon-btn"
-                onClick={onAdd}
-                title="Add page"
-                aria-label="Add page"
-            >
-                <FilePlus />
-            </button>
+            <Tooltip label="Add page" side="top">
+                <button
+                    type="button"
+                    className="bk-icon-btn"
+                    onClick={onAdd}
+                    aria-label="Add page"
+                >
+                    <FilePlus />
+                </button>
+            </Tooltip>
         </div>
     );
 }
