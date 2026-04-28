@@ -129,6 +129,18 @@ export class PrismaBoardAdapter extends BoardStorage {
         elements: ElementUpsert[],
     ): Promise<void> {
         for (const el of elements) {
+            // Empty-string createdBy fails the FK against User.id (Postgres
+            // tries to look up a user with id=''; null is treated as "no
+            // relationship" and passes the FK). The element's `createdBy`
+            // type is `string` (not `string | null`) for client convenience,
+            // so we coerce here at the persistence boundary. This was the
+            // root cause of text/image creates silently dropping when the
+            // client created an element before its session had loaded a
+            // userId — the upsert would error and the periodic flusher
+            // logged it but the user only saw the element vanish on reload.
+            const createdBy = el.createdBy && el.createdBy.length > 0
+                ? el.createdBy
+                : null;
             await this.prisma.element.upsert({
                 where: { id: el.id },
                 create: {
@@ -137,7 +149,7 @@ export class PrismaBoardAdapter extends BoardStorage {
                     type: el.type,
                     data: el.data,
                     zIndex: el.zIndex,
-                    createdBy: el.createdBy,
+                    createdBy,
                 },
                 update: {
                     data: el.data,
