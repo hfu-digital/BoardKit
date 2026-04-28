@@ -141,6 +141,13 @@ export class PrismaBoardAdapter extends BoardStorage {
             const createdBy = el.createdBy && el.createdBy.length > 0
                 ? el.createdBy
                 : null;
+            // Postgres INT4 range is [-2^31, 2^31). Clients commonly use
+            // Date.now() (a 13-digit ms epoch around 1.78e12) for z-index
+            // which overflows int4 and the upsert fails with "value out of
+            // range for the type: integer". Modulo into the int4 range
+            // preserves monotonic ordering within ~25-day rolling windows,
+            // which is plenty for visual stacking.
+            const zIndex = Math.trunc(el.zIndex) % 0x7fffffff;
             await this.prisma.element.upsert({
                 where: { id: el.id },
                 create: {
@@ -148,12 +155,12 @@ export class PrismaBoardAdapter extends BoardStorage {
                     pageId: el.pageId,
                     type: el.type,
                     data: el.data,
-                    zIndex: el.zIndex,
+                    zIndex,
                     createdBy,
                 },
                 update: {
                     data: el.data,
-                    zIndex: el.zIndex,
+                    zIndex,
                 },
             });
         }
