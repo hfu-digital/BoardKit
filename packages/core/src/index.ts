@@ -12,6 +12,9 @@ export * from './constants';
 // Scene graph
 export * from './scene';
 
+// Geometry helpers (perimeter math used by linear-element binding)
+export * from './geometry';
+
 // Drawing algorithms
 export * from './drawing';
 

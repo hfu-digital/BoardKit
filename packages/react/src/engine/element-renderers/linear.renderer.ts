@@ -5,18 +5,24 @@ import { getRoughCanvas, strokeStyleToRoughOptions } from '../roughjs-helpers';
  * Hybrid line/arrow renderer. Mirrors shape.renderer's roughness===0
  * fast-path: clean strokes when "architect", Rough.js polylines when
  * "artist" or "cartoonist".
+ *
+ * `pointsOverride` lets the caller pass already-resolved binding endpoints
+ * (see `resolveLinearEndpoints`) so we draw the live geometry — important
+ * when a remote shape move arrives before our local follow-on lands.
  */
 export function renderLinear(
     ctx: CanvasRenderingContext2D,
     element: LinearElement,
+    pointsOverride?: Point[],
 ): void {
-    const { points, style, arrowEnd, arrowStart, roughness, seed } = element.data;
+    const points = pointsOverride ?? element.data.points;
+    const { style, arrowEnd, arrowStart, roughness, seed } = element.data;
     if (points.length < 2) return;
 
     if (roughness === 0) {
         renderCrisp(ctx, points, style, arrowStart, arrowEnd);
     } else {
-        renderRough(ctx, element);
+        renderRough(ctx, element, points);
     }
 }
 
@@ -47,8 +53,12 @@ function renderCrisp(
     ctx.restore();
 }
 
-function renderRough(ctx: CanvasRenderingContext2D, element: LinearElement): void {
-    const { points, style, arrowEnd, arrowStart, roughness, seed } = element.data;
+function renderRough(
+    ctx: CanvasRenderingContext2D,
+    element: LinearElement,
+    points: Point[],
+): void {
+    const { style, arrowEnd, arrowStart, roughness, seed } = element.data;
     const rc = getRoughCanvas(ctx);
     const options = strokeStyleToRoughOptions(style, roughness, seed);
     rc.linearPath(points.map((p) => [p.x, p.y]), options);

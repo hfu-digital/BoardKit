@@ -91,7 +91,7 @@ function renderRough(ctx: CanvasRenderingContext2D, element: ShapeElement): void
     }
 }
 
-function drawShapePath(
+export function drawShapePath(
     ctx: CanvasRenderingContext2D,
     shapeType: 'rectangle' | 'diamond' | 'ellipse',
     x: number,

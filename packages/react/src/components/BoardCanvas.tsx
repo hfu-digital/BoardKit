@@ -154,9 +154,15 @@ export function BoardCanvas({
                 if (result.selection) {
                     store.setSelection(result.selection);
                 }
-                if (result.preview) {
+                // Always push interactive state on pointer events, even when
+                // result has no preview/selectionRect/bindingPreview — that
+                // way transitions like "hover off shape" clear the previously
+                // cached binding highlight from the rAF loop. Cheap op (just
+                // updates cached state). Skipped when there are mutations:
+                // the mutation branch below applies its own clear.
+                if (!result.mutations || result.mutations.length === 0) {
                     renderer.renderInteractiveLayer(
-                        result.preview,
+                        result.preview ?? [],
                         Array.from(store.getState().cursors.values()),
                         result.selectionRect ? [result.selectionRect] : [],
                         {
@@ -164,19 +170,7 @@ export function BoardCanvas({
                             selectedIds: store.getState().selectedIds,
                             activeTool: store.getState().activeTool,
                         },
-                    );
-                } else if (result.selectionRect) {
-                    // Rubber-band visual feedback during drag (no preview
-                    // elements, just the dashed rect).
-                    renderer.renderInteractiveLayer(
-                        [],
-                        Array.from(store.getState().cursors.values()),
-                        [result.selectionRect],
-                        {
-                            viewport: store.getState().viewport,
-                            selectedIds: store.getState().selectedIds,
-                            activeTool: store.getState().activeTool,
-                        },
+                        result.bindingPreview ?? [],
                     );
                 }
                 if (result.mutations && result.mutations.length > 0) {
@@ -241,6 +235,7 @@ export function BoardCanvas({
                             selectedIds: store.getState().selectedIds,
                             activeTool: store.getState().activeTool,
                         },
+                        [],
                     );
                 }
                 if (result.cursor) {
@@ -330,6 +325,7 @@ export function BoardCanvas({
                     selectedIds: state.selectedIds,
                     activeTool: state.activeTool,
                 },
+                [],
             );
         });
     }, [store, renderer]);

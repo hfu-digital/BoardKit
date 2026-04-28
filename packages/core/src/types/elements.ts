@@ -58,10 +58,28 @@ export interface ShapeElement extends ElementBase {
 }
 
 /**
+ * Reference from a linear element's endpoint to a shape it should "stick to".
+ * Stored intentionally minimal (just the bound shape's id) — at render and
+ * mutation time the actual world-space endpoint is recomputed as the
+ * intersection of (other-endpoint → bound-shape-center) with the bound
+ * shape's perimeter, so moving the shape automatically drags the endpoint
+ * along its border.
+ */
+export interface EndpointBinding {
+    elementId: string;
+}
+
+/**
  * Open polyline — used for both `line` and `arrow`. Excalidraw treats these
  * the same internally; only the optional arrowheads differ. `points` always
  * has at least 2 entries (start and end). Multi-segment polylines stay
  * supported for future polyline tools without breaking the schema.
+ *
+ * `startBinding` / `endBinding` are optional — when set, the corresponding
+ * `points[i]` is treated as a "last-known free position" cache and the
+ * actual endpoint is resolved against the bound shape's perimeter at render
+ * time (see `operations/resolve-bindings.ts`). When unset, `points[i]` is
+ * the literal endpoint as before.
  */
 export interface LinearElement extends ElementBase {
     type: 'linear';
@@ -75,6 +93,8 @@ export interface LinearElement extends ElementBase {
         arrowStart: boolean;
         arrowEnd: boolean;
         bounds: Rect;
+        startBinding?: EndpointBinding;
+        endBinding?: EndpointBinding;
     };
 }
 

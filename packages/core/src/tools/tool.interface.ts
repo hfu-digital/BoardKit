@@ -20,6 +20,18 @@ export interface InputEvent {
 
 export type ToolState = 'idle' | 'active' | 'finishing';
 
+/**
+ * Visual hint emitted by LinearTool while the user is dragging the arrow/line
+ * tool over a candidate target shape. The interactive layer paints the
+ * shape's perimeter outline plus a small dot at `anchorPoint` so the user
+ * sees where the endpoint will attach if they release here.
+ */
+export interface BindingPreview {
+    candidateShapeId: string;
+    anchorPoint: Point;
+    endpointKind: 'start' | 'end';
+}
+
 export interface ToolResult {
     mutations?: ElementMutation[];
     preview?: Element[];
@@ -29,6 +41,8 @@ export interface ToolResult {
     selection?: Set<string>;
     /** Live rubber-band rect for visual feedback during drag. BoardCanvas pushes it into the interactive layer's `selections` channel. */
     selectionRect?: Rect;
+    /** LinearTool emits these while dragging near a shape. BoardCanvas forwards them to the interactive layer. */
+    bindingPreview?: BindingPreview[];
 }
 
 export abstract class Tool {

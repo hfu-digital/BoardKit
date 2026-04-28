@@ -1,4 +1,4 @@
-import type { Element, Rect } from '@hfu.digital/boardkit-core';
+import type { BindingPreview, Element, Rect } from '@hfu.digital/boardkit-core';
 import type { CursorPosition } from '@hfu.digital/boardkit-core';
 import { BoardRenderer, type RenderContext } from '@hfu.digital/boardkit-core';
 import { renderStaticLayer } from './static-layer';
@@ -22,6 +22,7 @@ export class Canvas2DRenderer extends BoardRenderer {
     private cursors: CursorPosition[] = [];
     private selections: Rect[] = [];
     private selectedIds = new Set<string>();
+    private bindingPreviews: BindingPreview[] = [];
     private renderContext: RenderContext = {
         viewport: { offset: { x: 0, y: 0 }, zoom: 1 },
         selectedIds: new Set(),
@@ -79,12 +80,14 @@ export class Canvas2DRenderer extends BoardRenderer {
         cursors: CursorPosition[],
         selections: Rect[],
         context: RenderContext,
+        bindingPreviews: BindingPreview[] = [],
     ): void {
         this.preview = preview;
         this.cursors = cursors;
         this.selections = selections;
         this.renderContext = context;
         this.selectedIds = context.selectedIds;
+        this.bindingPreviews = bindingPreviews;
     }
 
     setParticipantColors(colors: Map<string, { color: string; name: string }>): void {
@@ -127,6 +130,7 @@ export class Canvas2DRenderer extends BoardRenderer {
                     this.staticCtx,
                     this.elements,
                     this.renderContext.viewport,
+                    this.elementsMap,
                 );
                 this.lastRenderedNonce = this.sceneNonce;
             }
@@ -142,6 +146,7 @@ export class Canvas2DRenderer extends BoardRenderer {
                     this.elementsMap,
                     this.renderContext.viewport,
                     this.participantColors,
+                    this.bindingPreviews,
                 );
             }
         };

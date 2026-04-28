@@ -1,4 +1,4 @@
-import type { Point, Rect, Element } from '../types/elements';
+import type { Point, Rect, Element, LinearElement } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
 import {
     boundsIntersect,
@@ -7,6 +7,10 @@ import {
     pointInBounds,
 } from '../scene/bounds';
 import { moveElements, resizeElement } from '../operations/transform';
+import {
+    getDependentLinears,
+    recomputeBoundLinear,
+} from '../operations/resolve-bindings';
 import {
     applyHandleResize,
     getSelectionHandleRects,
@@ -138,7 +142,8 @@ export class SelectTool extends Tool {
                 event.position,
                 { shift: event.modifiers.shift, alt: event.modifiers.alt },
             );
-            const preview = this.mapResize(newBounds);
+            const resized = this.mapResize(newBounds);
+            const preview = this.propagateBindings(scene, resized);
             return { preview, cursor: handleCursor(this.resizeHandle), state: this.state };
         }
 
@@ -153,7 +158,8 @@ export class SelectTool extends Tool {
             if (!this.dragArmed) {
                 return { cursor: 'move', state: this.state };
             }
-            const preview = moveElements(this.dragOriginals, delta);
+            const moved = moveElements(this.dragOriginals, delta);
+            const preview = this.propagateBindings(scene, moved);
             return { preview, cursor: 'move', state: this.state };
         }
 
@@ -178,7 +184,7 @@ export class SelectTool extends Tool {
         return { cursor: 'default', state: this.state };
     }
 
-    onPointerUp(event: InputEvent, _scene: SceneState): ToolResult {
+    onPointerUp(event: InputEvent, scene: SceneState): ToolResult {
         if (this.state !== 'active' || !this.startPos) {
             this.state = 'idle';
             return { state: 'idle' };
@@ -193,7 +199,8 @@ export class SelectTool extends Tool {
                 { shift: event.modifiers.shift, alt: event.modifiers.alt },
             );
             const resized = this.mapResize(newBounds);
-            const mutations = resized.map((el) => ({
+            const all = this.propagateBindings(scene, resized);
+            const mutations = all.map((el) => ({
                 type: 'update' as const,
                 elementId: el.id,
                 pageId: this.currentPageId,
@@ -210,7 +217,8 @@ export class SelectTool extends Tool {
                 y: event.position.y - this.startPos.y,
             };
             const moved = moveElements(this.dragOriginals, delta);
-            const mutations = moved.map((el) => ({
+            const all = this.propagateBindings(scene, moved);
+            const mutations = all.map((el) => ({
                 type: 'update' as const,
                 elementId: el.id,
                 pageId: this.currentPageId,
@@ -265,6 +273,50 @@ export class SelectTool extends Tool {
             };
             return resizeElement(el, mapped);
         });
+    }
+
+    /**
+     * Take a first-pass set of moved/resized elements (from `moveElements`
+     * or `mapResize`) and append re-resolved versions of any linear elements
+     * whose bindings reference a moved shape — including dependents that
+     * weren't part of the selection. Linears already in the first pass that
+     * carry bindings are themselves re-resolved (their points were blindly
+     * translated/scaled, which can leave a bound endpoint off-perimeter).
+     *
+     * Order matters for resize: we apply the entire first-pass to a transient
+     * scene before re-resolving, so an arrow whose source and target are both
+     * being resized binds against post-resize neighbours.
+     */
+    private propagateBindings(scene: SceneState, firstPass: Element[]): Element[] {
+        const movedIds = new Set(firstPass.map((el) => el.id));
+        const movedShapeIds = new Set(
+            firstPass.filter((el) => el.type === 'shape').map((el) => el.id),
+        );
+
+        const transientElements = new Map(scene.elements);
+        for (const el of firstPass) transientElements.set(el.id, el);
+        const transientScene: SceneState = {
+            elements: transientElements,
+            elementOrder: scene.elementOrder,
+        };
+
+        const recomputedFirstPass = firstPass.map((el) => {
+            if (el.type !== 'linear') return el;
+            const linear = el as LinearElement;
+            const hasBinding =
+                linear.data.startBinding !== undefined ||
+                linear.data.endBinding !== undefined;
+            if (!hasBinding) return el;
+            return recomputeBoundLinear(linear, transientScene);
+        });
+
+        // External dependents: linears in the scene NOT in firstPass that
+        // bind to one of the moved shapes.
+        const externalDependents = getDependentLinears(transientScene, movedShapeIds)
+            .filter((l) => !movedIds.has(l.id))
+            .map((l) => recomputeBoundLinear(l, transientScene));
+
+        return [...recomputedFirstPass, ...externalDependents];
     }
 
     private mergedSelectionBounds(scene: SceneState): Rect | null {
