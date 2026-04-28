@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
-import { calculateBounds, deepMerge, pointInBounds } from '@hfu.digital/boardkit-core';
+import { calculateBounds, deepMerge, pointInBounds, SelectTool } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { screenToWorld, zoomToPoint } from '../engine/viewport';
@@ -110,6 +110,14 @@ export function BoardCanvas({
             const tool = toolRegistry.get(activeTool);
             if (!tool) return;
 
+            // SelectTool is store-driven: push the latest selection + zoom in
+            // before each pointer dispatch so the tool's hit-tests use fresh
+            // values. The tool returns its updated selection on result.selection.
+            if (tool instanceof SelectTool) {
+                tool.setCurrentSelection(store.getState().selectedIds);
+                tool.setViewportZoom(store.getState().viewport.zoom);
+            }
+
             let result;
             switch (event.type) {
                 case 'pointerDown':
@@ -127,11 +135,29 @@ export function BoardCanvas({
             }
 
             if (result) {
+                // Apply selection write before mutations so PropertiesPanel sees
+                // the new selection alongside the new scene state.
+                if (result.selection) {
+                    store.setSelection(result.selection);
+                }
                 if (result.preview) {
                     renderer.renderInteractiveLayer(
                         result.preview,
                         Array.from(store.getState().cursors.values()),
+                        result.selectionRect ? [result.selectionRect] : [],
+                        {
+                            viewport: store.getState().viewport,
+                            selectedIds: store.getState().selectedIds,
+                            activeTool: store.getState().activeTool,
+                        },
+                    );
+                } else if (result.selectionRect) {
+                    // Rubber-band visual feedback during drag (no preview
+                    // elements, just the dashed rect).
+                    renderer.renderInteractiveLayer(
                         [],
+                        Array.from(store.getState().cursors.values()),
+                        [result.selectionRect],
                         {
                             viewport: store.getState().viewport,
                             selectedIds: store.getState().selectedIds,

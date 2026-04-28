@@ -1,5 +1,10 @@
 import type { Element, Rect, Point } from '@hfu.digital/boardkit-core';
 import type { CursorPosition } from '@hfu.digital/boardkit-core';
+import {
+    calculateBounds,
+    getSelectionHandleRects,
+    mergeBounds,
+} from '@hfu.digital/boardkit-core';
 import type { ViewportState } from './viewport';
 import { applyViewportTransform, worldToScreen } from './viewport';
 import { renderElement } from './static-layer';
@@ -29,12 +34,19 @@ export function renderInteractiveLayer(
         ctx.setLineDash([]);
     }
 
-    // Render selection handles on selected elements
-    for (const id of selectedIds) {
-        const el = elements.get(id);
-        if (el && 'bounds' in el.data) {
-            const bounds = el.data.bounds as Rect;
-            renderSelectionHandles(ctx, bounds, viewport.zoom);
+    // Render selection chrome around the merged bounds of all selected
+    // elements: a single bbox + 8 resize handles (4 corners + 4 edge mids).
+    // Handle geometry is shared with SelectTool's hit-test via
+    // getSelectionHandleRects so visible handle position == clickable rect.
+    if (selectedIds.size > 0) {
+        const selectedEls: Element[] = [];
+        for (const id of selectedIds) {
+            const el = elements.get(id);
+            if (el) selectedEls.push(el);
+        }
+        if (selectedEls.length > 0) {
+            const merged = mergeBounds(selectedEls.map(calculateBounds));
+            renderSelectionChrome(ctx, merged, viewport.zoom);
         }
     }
 
@@ -57,41 +69,27 @@ export function renderInteractiveLayer(
     ctx.restore();
 }
 
-function renderSelectionHandles(
+function renderSelectionChrome(
     ctx: CanvasRenderingContext2D,
     bounds: Rect,
     zoom: number,
 ): void {
-    const handleSize = 8 / zoom;
+    ctx.save();
     ctx.strokeStyle = '#2196F3';
     ctx.fillStyle = '#ffffff';
     ctx.lineWidth = 1.5 / zoom;
 
-    // Bounding box
+    // Bounding box around all selected elements.
     ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-    // Corner handles
-    const corners: Point[] = [
-        { x: bounds.x, y: bounds.y },
-        { x: bounds.x + bounds.width, y: bounds.y },
-        { x: bounds.x, y: bounds.y + bounds.height },
-        { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
-    ];
-
-    for (const c of corners) {
-        ctx.fillRect(
-            c.x - handleSize / 2,
-            c.y - handleSize / 2,
-            handleSize,
-            handleSize,
-        );
-        ctx.strokeRect(
-            c.x - handleSize / 2,
-            c.y - handleSize / 2,
-            handleSize,
-            handleSize,
-        );
+    // 8 resize handles (4 corners + 4 edge midpoints). Same source of truth
+    // as SelectTool's hit-test.
+    const handles = getSelectionHandleRects(bounds, zoom);
+    for (const rect of Object.values(handles)) {
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
     }
+    ctx.restore();
 }
 
 function renderCursor(

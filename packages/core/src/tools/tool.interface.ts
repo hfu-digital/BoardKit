@@ -1,4 +1,4 @@
-import type { Point } from '../types/elements';
+import type { Point, Rect } from '../types/elements';
 import type { ElementMutation } from '../types/events';
 import type { Element } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
@@ -25,6 +25,10 @@ export interface ToolResult {
     preview?: Element[];
     cursor?: string;
     state: ToolState;
+    /** SelectTool emits this on every pointerdown / rubber-band move. BoardCanvas applies it via store.setSelection. */
+    selection?: Set<string>;
+    /** Live rubber-band rect for visual feedback during drag. BoardCanvas pushes it into the interactive layer's `selections` channel. */
+    selectionRect?: Rect;
 }
 
 export abstract class Tool {

@@ -1,10 +1,39 @@
 import type { Point, Rect, Element } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
-import { pointInBounds, boundsIntersect, calculateBounds } from '../scene/bounds';
-import { Tool, type InputEvent, type ToolResult, type ToolState } from './tool.interface';
+import {
+    boundsIntersect,
+    calculateBounds,
+    mergeBounds,
+    pointInBounds,
+} from '../scene/bounds';
+import { moveElements, resizeElement } from '../operations/transform';
+import {
+    applyHandleResize,
+    getSelectionHandleRects,
+    handleCursor,
+    type HandleId,
+} from '../scene/handles';
+import {
+    Tool,
+    type InputEvent,
+    type ToolResult,
+    type ToolState,
+} from './tool.interface';
 
-type SelectMode = 'none' | 'drag' | 'rubberBand';
+type SelectMode = 'none' | 'drag' | 'rubberBand' | 'resize';
 
+const DRAG_THRESHOLD_PX = 5;
+
+/**
+ * Selection / move / resize tool. State (selection ids) lives in the store —
+ * BoardCanvas pushes the latest set in via `setCurrentSelection` before each
+ * pointer dispatch, and the tool returns the new set on `result.selection`
+ * for BoardCanvas to apply via `store.setSelection`.
+ *
+ * Move and resize operate on a snapshot of the original elements taken on
+ * pointerdown (`dragOriginals` / `resizeOriginals`), so the math is stable
+ * against intermediate scene mutations.
+ */
 export class SelectTool extends Tool {
     readonly id = 'select';
     readonly name = 'Select';
@@ -13,121 +42,137 @@ export class SelectTool extends Tool {
     private mode: SelectMode = 'none';
     private startPos: Point | null = null;
     private lastPos: Point | null = null;
-    private selectedIds = new Set<string>();
-    private dragOffsets = new Map<string, Point>();
     private currentPageId = '';
+
+    /** Transient input set by BoardCanvas before each pointer dispatch. */
+    private currentSelection = new Set<string>();
+    private currentZoom = 1;
+
+    // Drag (move) state
+    private dragOriginals: Element[] = [];
+    private dragArmed = false;
+
+    // Resize state
+    private resizeHandle: HandleId | null = null;
+    private resizeOriginalBounds: Rect = { x: 0, y: 0, width: 0, height: 0 };
+    private resizeOriginals: Element[] = [];
 
     setPageId(pageId: string): void {
         this.currentPageId = pageId;
     }
 
-    getSelectedIds(): Set<string> {
-        return new Set(this.selectedIds);
+    setCurrentSelection(ids: Set<string>): void {
+        this.currentSelection = new Set(ids);
     }
 
-    setSelectedIds(ids: Set<string>): void {
-        this.selectedIds = new Set(ids);
+    setViewportZoom(zoom: number): void {
+        this.currentZoom = zoom;
     }
 
     onPointerDown(event: InputEvent, scene: SceneState): ToolResult {
         this.startPos = event.position;
         this.lastPos = event.position;
+        this.dragArmed = false;
 
-        // Check if clicking on an existing element
-        const hitId = this.hitTest(event.position, scene);
-
-        if (hitId) {
-            // If shift is held, toggle selection
-            if (event.modifiers.shift) {
-                if (this.selectedIds.has(hitId)) {
-                    this.selectedIds.delete(hitId);
-                } else {
-                    this.selectedIds.add(hitId);
+        // 1) Resize handle hit-test runs first — only when something is selected.
+        if (this.currentSelection.size > 0) {
+            const merged = this.mergedSelectionBounds(scene);
+            if (merged) {
+                const handles = getSelectionHandleRects(merged, this.currentZoom);
+                for (const handle of Object.keys(handles) as HandleId[]) {
+                    if (pointInBounds(event.position, handles[handle])) {
+                        this.mode = 'resize';
+                        this.state = 'active';
+                        this.resizeHandle = handle;
+                        this.resizeOriginalBounds = merged;
+                        this.resizeOriginals = Array.from(this.currentSelection)
+                            .map((id) => scene.elements.get(id))
+                            .filter((el): el is Element => Boolean(el));
+                        return { cursor: handleCursor(handle), state: this.state };
+                    }
                 }
-            } else if (!this.selectedIds.has(hitId)) {
-                this.selectedIds = new Set([hitId]);
+            }
+        }
+
+        // 2) Element hit-test → drag.
+        const hitId = this.hitTest(event.position, scene);
+        if (hitId) {
+            let next: Set<string>;
+            if (event.modifiers.shift) {
+                next = new Set(this.currentSelection);
+                if (next.has(hitId)) next.delete(hitId);
+                else next.add(hitId);
+            } else if (this.currentSelection.has(hitId)) {
+                // Click inside an existing multi-selection keeps it intact.
+                next = new Set(this.currentSelection);
+            } else {
+                next = new Set([hitId]);
             }
 
-            // Start drag
             this.mode = 'drag';
             this.state = 'active';
+            this.dragOriginals = Array.from(next)
+                .map((id) => scene.elements.get(id))
+                .filter((el): el is Element => Boolean(el));
 
-            // Record offsets
-            this.dragOffsets.clear();
-            for (const id of this.selectedIds) {
-                const el = scene.elements.get(id);
-                if (el) {
-                    const bounds = calculateBounds(el);
-                    this.dragOffsets.set(id, {
-                        x: event.position.x - bounds.x,
-                        y: event.position.y - bounds.y,
-                    });
-                }
-            }
-
-            return { cursor: 'move', state: this.state };
+            return { cursor: 'move', state: this.state, selection: next };
         }
 
-        // Start rubber-band selection
-        if (!event.modifiers.shift) {
-            this.selectedIds.clear();
-        }
+        // 3) Empty space → start rubber-band. Clear selection unless shift.
+        const next = event.modifiers.shift ? new Set(this.currentSelection) : new Set<string>();
         this.mode = 'rubberBand';
         this.state = 'active';
-        return { cursor: 'crosshair', state: this.state };
+        return { cursor: 'crosshair', state: this.state, selection: next };
     }
 
     onPointerMove(event: InputEvent, scene: SceneState): ToolResult {
         if (this.state !== 'active' || !this.startPos) {
             return { cursor: 'default', state: this.state };
         }
-
         this.lastPos = event.position;
 
+        if (this.mode === 'resize' && this.resizeHandle) {
+            const newBounds = applyHandleResize(
+                this.resizeHandle,
+                this.resizeOriginalBounds,
+                event.position,
+                { shift: event.modifiers.shift, alt: event.modifiers.alt },
+            );
+            const preview = this.mapResize(newBounds);
+            return { preview, cursor: handleCursor(this.resizeHandle), state: this.state };
+        }
+
         if (this.mode === 'drag') {
-            // Generate move mutations as preview
             const delta: Point = {
                 x: event.position.x - this.startPos.x,
                 y: event.position.y - this.startPos.y,
             };
-
-            const preview: Element[] = [];
-            for (const id of this.selectedIds) {
-                const el = scene.elements.get(id);
-                if (el) {
-                    const bounds = calculateBounds(el);
-                    preview.push({
-                        ...el,
-                        data: {
-                            ...el.data,
-                            bounds: {
-                                ...bounds,
-                                x: bounds.x + delta.x,
-                                y: bounds.y + delta.y,
-                            },
-                        },
-                    } as Element);
-                }
+            if (!this.dragArmed && Math.hypot(delta.x, delta.y) >= DRAG_THRESHOLD_PX) {
+                this.dragArmed = true;
             }
-
+            if (!this.dragArmed) {
+                return { cursor: 'move', state: this.state };
+            }
+            const preview = moveElements(this.dragOriginals, delta);
             return { preview, cursor: 'move', state: this.state };
         }
 
         if (this.mode === 'rubberBand') {
-            // Update rubber-band selection
             const rect = this.getRubberBandRect();
+            const next = new Set<string>();
             if (rect) {
-                // Find elements intersecting the rect
                 for (const [id, el] of scene.elements) {
-                    if (el.pageId === this.currentPageId) {
-                        const bounds = calculateBounds(el);
-                        if (boundsIntersect(rect, bounds)) {
-                            this.selectedIds.add(id);
-                        }
-                    }
+                    if (el.pageId !== this.currentPageId) continue;
+                    const bounds = calculateBounds(el);
+                    if (boundsIntersect(rect, bounds)) next.add(id);
                 }
             }
-            return { cursor: 'crosshair', state: this.state };
+            return {
+                cursor: 'crosshair',
+                state: this.state,
+                selection: next,
+                selectionRect: rect ?? undefined,
+            };
         }
 
         return { cursor: 'default', state: this.state };
@@ -138,49 +183,99 @@ export class SelectTool extends Tool {
             this.state = 'idle';
             return { state: 'idle' };
         }
-
         this.state = 'idle';
 
-        if (this.mode === 'drag') {
+        if (this.mode === 'resize' && this.resizeHandle) {
+            const newBounds = applyHandleResize(
+                this.resizeHandle,
+                this.resizeOriginalBounds,
+                event.position,
+                { shift: event.modifiers.shift, alt: event.modifiers.alt },
+            );
+            const resized = this.mapResize(newBounds);
+            const mutations = resized.map((el) => ({
+                type: 'update' as const,
+                elementId: el.id,
+                pageId: this.currentPageId,
+                data: { data: el.data, updatedAt: el.updatedAt } as Partial<Element>,
+                timestamp: Date.now(),
+            }));
+            this.resetTransientState();
+            return { mutations, state: 'idle' };
+        }
+
+        if (this.mode === 'drag' && this.dragArmed) {
             const delta: Point = {
                 x: event.position.x - this.startPos.x,
                 y: event.position.y - this.startPos.y,
             };
-
-            // Only create mutations if actually moved
-            if (Math.abs(delta.x) > 1 || Math.abs(delta.y) > 1) {
-                const mutations = Array.from(this.selectedIds).map(
-                    (elementId) => ({
-                        type: 'update' as const,
-                        elementId,
-                        pageId: this.currentPageId,
-                        data: { _moveDelta: delta } as unknown as Partial<Element>,
-                        timestamp: Date.now(),
-                    }),
-                );
-                this.mode = 'none';
-                this.startPos = null;
-                this.lastPos = null;
-                return { mutations, state: 'idle' };
-            }
+            const moved = moveElements(this.dragOriginals, delta);
+            const mutations = moved.map((el) => ({
+                type: 'update' as const,
+                elementId: el.id,
+                pageId: this.currentPageId,
+                data: { data: el.data, updatedAt: el.updatedAt } as Partial<Element>,
+                timestamp: Date.now(),
+            }));
+            this.resetTransientState();
+            return { mutations, state: 'idle' };
         }
 
-        this.mode = 'none';
-        this.startPos = null;
-        this.lastPos = null;
+        // Rubber-band: selection was already pushed live during pointermove;
+        // no commit-time work needed.
+        this.resetTransientState();
         return { state: 'idle' };
     }
 
     onCancel(): ToolResult {
         this.state = 'idle';
-        this.mode = 'none';
-        this.startPos = null;
-        this.lastPos = null;
+        this.resetTransientState();
         return { state: 'idle' };
     }
 
+    // ------------------------------------------------------------------
+
+    private resetTransientState(): void {
+        this.mode = 'none';
+        this.startPos = null;
+        this.lastPos = null;
+        this.dragOriginals = [];
+        this.dragArmed = false;
+        this.resizeHandle = null;
+        this.resizeOriginals = [];
+    }
+
+    /**
+     * Map the merged-bounds resize onto each original element. Each element's
+     * bbox is scaled proportionally against the merged-bounds delta and passed
+     * to `resizeElement` from core/operations/transform — that helper handles
+     * per-type scaling (position/size for shapes, points for strokes/linears).
+     */
+    private mapResize(newBounds: Rect): Element[] {
+        const orig = this.resizeOriginalBounds;
+        const scaleX = orig.width !== 0 ? newBounds.width / orig.width : 1;
+        const scaleY = orig.height !== 0 ? newBounds.height / orig.height : 1;
+        return this.resizeOriginals.map((el) => {
+            const b = calculateBounds(el);
+            const mapped: Rect = {
+                x: newBounds.x + (b.x - orig.x) * scaleX,
+                y: newBounds.y + (b.y - orig.y) * scaleY,
+                width: b.width * scaleX,
+                height: b.height * scaleY,
+            };
+            return resizeElement(el, mapped);
+        });
+    }
+
+    private mergedSelectionBounds(scene: SceneState): Rect | null {
+        const els = Array.from(this.currentSelection)
+            .map((id) => scene.elements.get(id))
+            .filter((el): el is Element => Boolean(el));
+        if (els.length === 0) return null;
+        return mergeBounds(els.map(calculateBounds));
+    }
+
     private hitTest(position: Point, scene: SceneState): string | null {
-        // Iterate in reverse z-order (top elements first)
         for (let i = scene.elementOrder.length - 1; i >= 0; i--) {
             const id = scene.elementOrder[i];
             const el = scene.elements.get(id);
