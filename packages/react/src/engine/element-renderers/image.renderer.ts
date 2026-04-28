@@ -24,12 +24,30 @@ interface CacheEntry {
 const RETRY_BACKOFF_MS = 5_000;
 const imageCache = new Map<string, CacheEntry>();
 
+/**
+ * Subscribers fire when an image transitions to 'ready'. The BoardKitProvider
+ * wires `renderer.invalidateScene` so a paint happens on the next rAF tick;
+ * without it, the just-loaded image stays invisible until some unrelated
+ * event causes a re-render.
+ */
+const readySubscribers = new Set<() => void>();
+
+export function subscribeImageReady(cb: () => void): () => void {
+    readySubscribers.add(cb);
+    return () => {
+        readySubscribers.delete(cb);
+    };
+}
+
 function loadImage(resolvedUrl: string): CacheEntry {
     const image = new Image();
     const entry: CacheEntry = { image, state: 'loading' };
     image.onload = () => {
         entry.state = image.naturalWidth > 0 ? 'ready' : 'broken';
         if (entry.state === 'broken') entry.lastErrorAt = Date.now();
+        if (entry.state === 'ready') {
+            for (const cb of readySubscribers) cb();
+        }
     };
     image.onerror = () => {
         entry.state = 'broken';

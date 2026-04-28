@@ -1,29 +1,7 @@
 import { useCallback } from 'react';
+import { deepMerge } from '@hfu.digital/boardkit-core';
 import type { Element, ElementMutation } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
-
-/**
- * Deep-merge patch that avoids stomping nested objects (e.g. updating only
- * stroke.color on style.stroke must not erase fill). One level of recursion
- * is enough for our element data shape.
- */
-function deepMerge<T>(target: T, patch: Partial<T>): T {
-    if (!patch || typeof patch !== 'object') return target;
-    const out = { ...target } as T;
-    for (const key of Object.keys(patch) as Array<keyof T>) {
-        const tv = (target as any)[key];
-        const pv = (patch as any)[key];
-        if (
-            tv && typeof tv === 'object' && !Array.isArray(tv) &&
-            pv && typeof pv === 'object' && !Array.isArray(pv)
-        ) {
-            (out as any)[key] = deepMerge(tv, pv);
-        } else if (pv !== undefined) {
-            (out as any)[key] = pv;
-        }
-    }
-    return out;
-}
 
 export interface UseElementMutationsResult {
     /**

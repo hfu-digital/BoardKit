@@ -51,12 +51,21 @@ export function TextEditor({
     const minHeight = (initialSize?.height ?? MIN_WORLD_HEIGHT) * viewport.zoom;
 
     // Auto-focus on mount; place caret at the end so editing existing text
-    // doesn't dump the user at the start of the buffer.
+    // doesn't dump the user at the start of the buffer. Defend against a
+    // parent pointerdown handler that fires on the same tick and steals
+    // focus back to the canvas — one rAF tick is enough for synchronous
+    // handlers to settle.
     useEffect(() => {
         const el = editorRef.current;
         if (!el) return;
         el.focus();
         el.setSelectionRange(el.value.length, el.value.length);
+        const raf = requestAnimationFrame(() => {
+            if (document.activeElement !== el) {
+                el.focus();
+            }
+        });
+        return () => cancelAnimationFrame(raf);
     }, []);
 
     // Auto-grow height to fit content. Run after every render so wrapping
@@ -69,6 +78,11 @@ export function TextEditor({
     }, [content, minHeight]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Stop bubbling to the global window keydown listener in
+        // useKeyboardShortcuts. The hook already filters textarea targets,
+        // but belt-and-suspenders against any browser quirk where the
+        // target check is bypassed.
+        e.stopPropagation();
         if (e.key === 'Escape') {
             e.preventDefault();
             onCancel();

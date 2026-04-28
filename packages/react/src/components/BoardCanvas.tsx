@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
-import { calculateBounds, pointInBounds } from '@hfu.digital/boardkit-core';
+import { calculateBounds, deepMerge, pointInBounds } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
 import { screenToWorld, zoomToPoint } from '../engine/viewport';
@@ -158,7 +158,7 @@ export function BoardCanvas({
                                 const existing = s.elements.get(m.elementId);
                                 if (!existing) continue;
                                 const elements = new Map(s.elements);
-                                elements.set(m.elementId, { ...existing, ...(m.data as any) });
+                                elements.set(m.elementId, deepMerge(existing, m.data as Partial<typeof existing>));
                                 s = { elements, elementOrder: s.elementOrder };
                             } else if (m.type === 'delete') {
                                 const elements = new Map(s.elements);
@@ -238,6 +238,26 @@ export function BoardCanvas({
                 selectedIds: state.selectedIds,
                 activeTool: state.activeTool,
             });
+        });
+    }, [store, renderer]);
+
+    // Push fresh selection to the renderer's interactive-layer args. The
+    // interactive layer renders every rAF frame but reads selectedIds from
+    // cached args — without this push, chrome stays stale until another
+    // event happens to push (scene mutation / pointer event).
+    useEffect(() => {
+        return store.subscribe('selection', () => {
+            const state = store.getState();
+            renderer.renderInteractiveLayer(
+                [],
+                Array.from(state.cursors.values()),
+                [],
+                {
+                    viewport: state.viewport,
+                    selectedIds: state.selectedIds,
+                    activeTool: state.activeTool,
+                },
+            );
         });
     }, [store, renderer]);
 

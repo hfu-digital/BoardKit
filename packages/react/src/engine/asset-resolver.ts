@@ -34,6 +34,24 @@ const RETRY_BACKOFF_MS = 5_000;
 const cache = new Map<string, Entry>();
 let config: ResolverConfig | null = null;
 
+/**
+ * Subscribers fire after every fetch terminates (success or error). The
+ * BoardKitProvider wires `renderer.invalidateScene` so the next rAF tick
+ * picks up the freshly-cached blob URL and the image actually paints.
+ */
+const readySubscribers = new Set<() => void>();
+
+export function subscribeAssetReady(cb: () => void): () => void {
+    readySubscribers.add(cb);
+    return () => {
+        readySubscribers.delete(cb);
+    };
+}
+
+function notifyAssetReady(): void {
+    for (const cb of readySubscribers) cb();
+}
+
 export function configureAssetResolver(next: ResolverConfig): void {
     config = next;
 }
@@ -47,6 +65,7 @@ export function resetAssetResolver(): void {
         if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
     }
     cache.clear();
+    readySubscribers.clear();
     config = null;
 }
 
@@ -103,9 +122,11 @@ async function fetchAsset(url: string): Promise<void> {
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
         cache.set(url, { state: 'ready', blobUrl });
+        notifyAssetReady();
     } catch (err) {
         cache.set(url, { state: 'error', lastErrorAt: Date.now() });
         // eslint-disable-next-line no-console
         console.warn('[boardkit] asset fetch failed:', url, err);
+        notifyAssetReady();
     }
 }

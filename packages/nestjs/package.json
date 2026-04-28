@@ -1,6 +1,6 @@
 {
     "name": "@hfu.digital/boardkit-nestjs",
-    "version": "2026.04.11",
+    "version": "2026.04.12",
     "description": "NestJS module for BoardKit — real-time collaboration server with pluggable storage adapters",
     "license": "MIT",
     "repository": {
