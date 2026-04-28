@@ -42,4 +42,8 @@ export interface Asset {
     storageKey: string;
     uploadedBy: string;
     createdAt: string;
+    // Populated by the upload controller as a relative path
+    // (e.g. `/boards/:boardId/assets/:assetId`). Clients absolutise this
+    // against their configured API base URL before storing it in element data.
+    url?: string;
 }

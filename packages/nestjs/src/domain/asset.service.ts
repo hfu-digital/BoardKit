@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { Asset } from '@hfu.digital/boardkit-core';
 import { LIMITS } from '@hfu.digital/boardkit-core';
-import { AssetStorage, type AssetMeta } from '../interfaces/asset-storage.interface';
+import {
+    AssetStorage,
+    type AssetMeta,
+    type AssetRecord,
+} from '../interfaces/asset-storage.interface';
 
 export interface AssetServiceLimits {
     maxAssetSizeMb: number;
@@ -75,5 +79,16 @@ export class AssetService {
 
     async getBoardUsage(boardId: string): Promise<number> {
         return this.storage.getBoardUsage(boardId);
+    }
+
+    async download(storageKey: string): Promise<Buffer> {
+        return this.storage.download(storageKey);
+    }
+
+    async findById(
+        boardId: string,
+        assetId: string,
+    ): Promise<AssetRecord | null> {
+        return this.storage.findById(boardId, assetId);
     }
 }

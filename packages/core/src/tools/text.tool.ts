@@ -1,19 +1,19 @@
-import type { Point, TextElement } from '../types/elements';
+import type { Point } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
 import { pointInBounds, calculateBounds } from '../scene/bounds';
-import { DEFAULT_TEXT_STYLE } from '../constants';
 import { Tool, type InputEvent, type ToolResult, type ToolState } from './tool.interface';
 
-let textIdCounter = 0;
-function generateTextId(): string {
-    return `text-${++textIdCounter}-${Date.now()}`;
-}
-
-export interface TextToolEvent {
-    type: 'createTextEditor' | 'editTextEditor';
-    elementId: string;
-    position: Point;
-}
+/**
+ * The TextTool is a pure intent emitter. It never persists anything itself —
+ * element creation/update lives in the React layer's `useTextEditor` hook,
+ * which subscribes to `onTextEvent`. On click, the tool either signals
+ * "edit this existing text element" (if the click hit one) or "open a fresh
+ * text editor at this position" (if it didn't). The hook decides whether
+ * an empty commit produces no element (create) or deletes the element (edit).
+ */
+export type TextToolEvent =
+    | { type: 'createTextEditor'; position: Point }
+    | { type: 'editTextEditor'; elementId: string; position: Point };
 
 export class TextTool extends Tool {
     readonly id = 'text';
@@ -21,76 +21,29 @@ export class TextTool extends Tool {
     state: ToolState = 'idle';
 
     private currentPageId = '';
-    private createdBy = '';
 
-    /** Callback to notify the frontend about text editing */
+    /** Callback wired by the React layer to drive the inline TextEditor. */
     onTextEvent?: (event: TextToolEvent) => void;
 
     setPageId(pageId: string): void {
         this.currentPageId = pageId;
     }
 
-    setCreatedBy(userId: string): void {
-        this.createdBy = userId;
-    }
-
     onPointerDown(event: InputEvent, scene: SceneState): ToolResult {
-        // Check if clicking on existing text element
         const hitId = this.hitTestText(event.position, scene);
-
         if (hitId) {
             this.onTextEvent?.({
                 type: 'editTextEditor',
                 elementId: hitId,
                 position: event.position,
             });
-            return { cursor: 'text', state: 'idle' };
-        }
-
-        // Create new text element
-        const elementId = generateTextId();
-        const now = new Date().toISOString();
-
-        const textElement: TextElement = {
-            id: elementId,
-            pageId: this.currentPageId,
-            type: 'text',
-            zIndex: Date.now(),
-            createdBy: this.createdBy,
-            createdAt: now,
-            updatedAt: now,
-            data: {
-                content: '',
+        } else {
+            this.onTextEvent?.({
+                type: 'createTextEditor',
                 position: event.position,
-                size: { width: 200, height: 40 },
-                rotation: 0,
-                style: { ...DEFAULT_TEXT_STYLE },
-                bounds: {
-                    x: event.position.x,
-                    y: event.position.y,
-                    width: 200,
-                    height: 40,
-                },
-            },
-        };
-
-        const mutations = [
-            {
-                type: 'create' as const,
-                elementId,
-                pageId: this.currentPageId,
-                data: textElement,
-                timestamp: Date.now(),
-            },
-        ];
-
-        this.onTextEvent?.({
-            type: 'createTextEditor',
-            elementId,
-            position: event.position,
-        });
-
-        return { mutations, cursor: 'text', state: 'idle' };
+            });
+        }
+        return { cursor: 'text', state: 'idle' };
     }
 
     onPointerMove(_event: InputEvent, _scene: SceneState): ToolResult {

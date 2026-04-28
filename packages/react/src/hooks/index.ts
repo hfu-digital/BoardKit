@@ -23,6 +23,8 @@ export { useFollowMode } from './useFollowMode';
 export type { UseFollowModeResult } from './useFollowMode';
 export { useImageImport } from './useImageImport';
 export type { UseImageImportResult } from './useImageImport';
+export { useTextEditor } from './useTextEditor';
+export type { UseTextEditorResult, TextEditorSession } from './useTextEditor';
 export { useSelection } from './useSelection';
 export type { UseSelectionResult } from './useSelection';
 export { useElementMutations } from './useElementMutations';

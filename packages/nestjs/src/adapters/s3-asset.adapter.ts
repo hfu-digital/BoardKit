@@ -2,6 +2,7 @@ import type { Asset } from '@hfu.digital/boardkit-core';
 import {
     AssetStorage,
     type AssetMeta,
+    type AssetRecord,
 } from '../interfaces/asset-storage.interface';
 
 // Structural typing — accepts any S3-compatible client
@@ -25,18 +26,29 @@ class DeleteObjectCommand {
     constructor(public readonly input: Record<string, unknown>) {}
 }
 
+class GetObjectCommand {
+    constructor(public readonly input: Record<string, unknown>) {}
+}
+
+interface S3AssetRecord {
+    id: string;
+    boardId: string;
+    storageKey: string;
+    mimeType: string;
+    sizeBytes: number;
+}
+
 export class S3AssetAdapter extends AssetStorage {
     private readonly bucket: string;
     private readonly prefix: string;
     private readonly cdnUrl?: string;
     private readonly client: S3Client;
 
-    // Track assets in memory for getBoardUsage
-    // In production, query the database instead
-    private assets = new Map<
-        string,
-        { boardId: string; sizeBytes: number }
-    >();
+    // Track assets in memory for getBoardUsage / findById.
+    // In production, consumers can layer their own metadata table on top
+    // (the HFU adapter does this via Prisma).
+    private assets = new Map<string, S3AssetRecord>();
+    private byId = new Map<string, S3AssetRecord>();
 
     constructor(config: S3AssetAdapterConfig) {
         super();
@@ -63,10 +75,15 @@ export class S3AssetAdapter extends AssetStorage {
             }),
         );
 
-        this.assets.set(storageKey, {
+        const record: S3AssetRecord = {
+            id,
             boardId,
+            storageKey,
+            mimeType: meta.mimeType,
             sizeBytes: meta.sizeBytes,
-        });
+        };
+        this.assets.set(storageKey, record);
+        this.byId.set(`${boardId}:${id}`, record);
 
         return {
             id,
@@ -93,6 +110,10 @@ export class S3AssetAdapter extends AssetStorage {
                 Key: storageKey,
             }),
         );
+        const record = this.assets.get(storageKey);
+        if (record) {
+            this.byId.delete(`${record.boardId}:${record.id}`);
+        }
         this.assets.delete(storageKey);
     }
 
@@ -104,5 +125,43 @@ export class S3AssetAdapter extends AssetStorage {
             }
         }
         return total;
+    }
+
+    async download(storageKey: string): Promise<Buffer> {
+        const response = await this.client.send(
+            new GetObjectCommand({
+                Bucket: this.bucket,
+                Key: storageKey,
+            }),
+        );
+        // AWS SDK v3 returns a Body with various stream shapes depending on
+        // runtime. transformToByteArray is the documented helper; fall back to
+        // collecting from a Node Readable for older clients.
+        const body = response?.Body;
+        if (!body) {
+            throw new Error(`Empty body for storageKey ${storageKey}`);
+        }
+        if (typeof body.transformToByteArray === 'function') {
+            const bytes = await body.transformToByteArray();
+            return Buffer.from(bytes);
+        }
+        const chunks: Buffer[] = [];
+        for await (const chunk of body) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        return Buffer.concat(chunks);
+    }
+
+    async findById(
+        boardId: string,
+        assetId: string,
+    ): Promise<AssetRecord | null> {
+        const record = this.byId.get(`${boardId}:${assetId}`);
+        if (!record) return null;
+        return {
+            storageKey: record.storageKey,
+            mimeType: record.mimeType,
+            sizeBytes: record.sizeBytes,
+        };
     }
 }

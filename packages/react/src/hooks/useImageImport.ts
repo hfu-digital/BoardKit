@@ -148,10 +148,22 @@ export function useImageImport(boardId: string): UseImageImportResult {
                 }
 
                 const asset = await res.json();
-                const url: string = asset.url ?? asset.storageKey ?? '';
+                // Server returns a relative URL like `/boards/:id/assets/:id`.
+                // Absolutise it against the configured API base so all
+                // collaborators resolve the same canonical reference
+                // regardless of which client opened the board first.
+                const relativeOrAbsolute: string = asset.url ?? '';
+                if (!relativeOrAbsolute) {
+                    throw new Error('Asset upload returned no url');
+                }
+                const url = relativeOrAbsolute.startsWith('http')
+                    ? relativeOrAbsolute
+                    : `${config.apiUrl.replace(/\/$/, '')}${relativeOrAbsolute}`;
                 const assetId: string = asset.id ?? '';
 
-                // Determine image dimensions
+                // Determine image dimensions from the local file (the
+                // uploaded asset endpoint is auth-gated; the local blob is
+                // the simplest source for natural dimensions).
                 const objectUrl = URL.createObjectURL(file);
                 const dimensions = await loadImageDimensions(objectUrl);
                 URL.revokeObjectURL(objectUrl);

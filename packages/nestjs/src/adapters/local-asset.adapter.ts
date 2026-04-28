@@ -2,8 +2,9 @@ import type { Asset } from '@hfu.digital/boardkit-core';
 import {
     AssetStorage,
     type AssetMeta,
+    type AssetRecord,
 } from '../interfaces/asset-storage.interface';
-import { writeFile, unlink, mkdir, stat } from 'fs/promises';
+import { readFile, writeFile, unlink, mkdir, stat } from 'fs/promises';
 import { join } from 'path';
 
 export interface LocalAssetAdapterConfig {
@@ -11,13 +12,21 @@ export interface LocalAssetAdapterConfig {
     baseUrl?: string;
 }
 
+interface LocalAssetRecord {
+    id: string;
+    boardId: string;
+    storageKey: string;
+    mimeType: string;
+    sizeBytes: number;
+}
+
 export class LocalAssetAdapter extends AssetStorage {
     private readonly basePath: string;
     private readonly baseUrl: string;
-    private assets = new Map<
-        string,
-        { boardId: string; sizeBytes: number }
-    >();
+    // Keyed by storageKey (used for getBoardUsage / delete bookkeeping).
+    private assets = new Map<string, LocalAssetRecord>();
+    // Keyed by `${boardId}:${id}` for findById without scanning.
+    private byId = new Map<string, LocalAssetRecord>();
 
     constructor(config: LocalAssetAdapterConfig) {
         super();
@@ -38,10 +47,15 @@ export class LocalAssetAdapter extends AssetStorage {
         await mkdir(dir, { recursive: true });
         await writeFile(filePath, file);
 
-        this.assets.set(storageKey, {
+        const record: LocalAssetRecord = {
+            id,
             boardId,
+            storageKey,
+            mimeType: meta.mimeType,
             sizeBytes: meta.sizeBytes,
-        });
+        };
+        this.assets.set(storageKey, record);
+        this.byId.set(`${boardId}:${id}`, record);
 
         return {
             id,
@@ -65,6 +79,10 @@ export class LocalAssetAdapter extends AssetStorage {
         } catch {
             // File may not exist
         }
+        const record = this.assets.get(storageKey);
+        if (record) {
+            this.byId.delete(`${record.boardId}:${record.id}`);
+        }
         this.assets.delete(storageKey);
     }
 
@@ -76,5 +94,23 @@ export class LocalAssetAdapter extends AssetStorage {
             }
         }
         return total;
+    }
+
+    async download(storageKey: string): Promise<Buffer> {
+        const filePath = join(this.basePath, storageKey);
+        return readFile(filePath);
+    }
+
+    async findById(
+        boardId: string,
+        assetId: string,
+    ): Promise<AssetRecord | null> {
+        const record = this.byId.get(`${boardId}:${assetId}`);
+        if (!record) return null;
+        return {
+            storageKey: record.storageKey,
+            mimeType: record.mimeType,
+            sizeBytes: record.sizeBytes,
+        };
     }
 }

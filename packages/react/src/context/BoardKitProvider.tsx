@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useMemo } from 're
 import { ToolRegistry } from '@hfu.digital/boardkit-core';
 import { BoardStore } from '../store/board-store';
 import { Canvas2DRenderer } from '../engine/canvas-2d-renderer';
+import { configureAssetResolver, resetAssetResolver } from '../engine/asset-resolver';
 
 export interface BoardKitTheme {
     selectionColor: string;
@@ -70,9 +71,21 @@ export function BoardKitProvider({ config, children }: BoardKitProviderProps) {
         [config],
     );
 
+    // Re-configure the asset resolver on every config change so authToken
+    // refreshes (and apiUrl swaps in tests) reach the renderer. The resolver
+    // re-reads the token via the closure on every fetch, so identity-stable
+    // refs aren't required.
+    useEffect(() => {
+        configureAssetResolver({
+            apiUrl: config.apiUrl,
+            getAuthToken: () => config.authToken,
+        });
+    }, [config.apiUrl, config.authToken]);
+
     useEffect(() => {
         return () => {
             rendererRef.current?.destroy();
+            resetAssetResolver();
         };
     }, []);
 

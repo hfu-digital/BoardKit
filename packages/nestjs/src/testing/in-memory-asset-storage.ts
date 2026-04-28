@@ -2,6 +2,7 @@ import type { Asset } from '@hfu.digital/boardkit-core';
 import {
     AssetStorage,
     type AssetMeta,
+    type AssetRecord,
 } from '../interfaces/asset-storage.interface';
 
 let idCounter = 0;
@@ -51,5 +52,27 @@ export class InMemoryAssetStorage extends AssetStorage {
             }
         }
         return total;
+    }
+
+    async download(storageKey: string): Promise<Buffer> {
+        const entry = this.assets.get(storageKey);
+        if (!entry) throw new Error(`Asset ${storageKey} not found`);
+        return entry.buffer;
+    }
+
+    async findById(
+        boardId: string,
+        assetId: string,
+    ): Promise<AssetRecord | null> {
+        for (const entry of this.assets.values()) {
+            if (entry.asset.boardId === boardId && entry.asset.id === assetId) {
+                return {
+                    storageKey: entry.asset.storageKey,
+                    mimeType: entry.asset.mimeType,
+                    sizeBytes: entry.asset.sizeBytes,
+                };
+            }
+        }
+        return null;
     }
 }

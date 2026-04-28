@@ -1,10 +1,14 @@
 import React, { useRef, useEffect } from 'react';
 import type { InputEvent as CoreInputEvent } from '@hfu.digital/boardkit-core';
+import { calculateBounds, pointInBounds } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 import { InputPipeline } from '../engine/input-pipeline';
-import { zoomToPoint } from '../engine/viewport';
+import { screenToWorld, zoomToPoint } from '../engine/viewport';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useImageImport } from '../hooks/useImageImport';
+import { useTextEditor } from '../hooks/useTextEditor';
+import { useViewport } from '../hooks/useViewport';
+import { TextEditor } from './TextEditor';
 
 export interface BoardCanvasProps {
     boardId: string;
@@ -64,6 +68,13 @@ export function BoardCanvas({
             }
         });
     }, [store, openFilePicker]);
+
+    // Inline text editing. The hook wires the TextTool's intent callback and
+    // owns the editor session state. We render the <TextEditor /> below when
+    // a session is active, and add a native dblclick handler so any tool
+    // (typically Select) can open the editor on existing text.
+    const textEditor = useTextEditor({ readOnly });
+    const { viewport } = useViewport();
 
     // Initialize renderer
     useEffect(() => {
@@ -230,6 +241,30 @@ export function BoardCanvas({
         });
     }, [store, renderer]);
 
+    const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (readOnly) return;
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const state = store.getState();
+        const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const world = screenToWorld(screen, state.viewport);
+        // Topmost text element under the cursor wins. Use calculateBounds —
+        // text element bounds in `data.bounds` may be stale until a commit
+        // re-measures, but calculateBounds reads `position` + `size` which
+        // useTextEditor.commitText keeps fresh.
+        for (let i = state.scene.elementOrder.length - 1; i >= 0; i--) {
+            const id = state.scene.elementOrder[i];
+            const el = state.scene.elements.get(id);
+            if (!el || el.type !== 'text') continue;
+            if (el.pageId !== state.activePageId) continue;
+            const bounds = calculateBounds(el);
+            if (pointInBounds(world, bounds)) {
+                textEditor.beginEditExternal(id, world);
+                return;
+            }
+        }
+    };
+
     const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!onContextMenu) return;
         e.preventDefault();
@@ -265,13 +300,27 @@ export function BoardCanvas({
             ref={containerRef}
             className={className}
             onContextMenu={handleContextMenu}
+            onDoubleClick={handleDoubleClick}
             style={{
                 width: '100%',
                 height: '100%',
                 overflow: 'hidden',
                 touchAction: 'none',
+                position: 'relative',
                 ...style,
             }}
-        />
+        >
+            {textEditor.session && (
+                <TextEditor
+                    position={textEditor.session.position}
+                    initialContent={textEditor.session.initialContent}
+                    initialSize={textEditor.session.initialSize}
+                    style={textEditor.session.style}
+                    viewport={viewport}
+                    onCommit={textEditor.commitText}
+                    onCancel={textEditor.cancel}
+                />
+            )}
+        </div>
     );
 }
