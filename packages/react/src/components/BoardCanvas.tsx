@@ -69,6 +69,20 @@ export function BoardCanvas({
         });
     }, [store, openFilePicker]);
 
+    // Drawing tools shouldn't keep an existing selection chrome on screen —
+    // the user has signalled they're done with the current selection by
+    // picking a tool that doesn't operate on it. Clearing here prevents
+    // the visual lag where pen/shape/text creation happens behind a
+    // hovering selection bbox + handles.
+    useEffect(() => {
+        return store.subscribe('tool', () => {
+            const activeTool = store.getState().activeTool;
+            if (activeTool !== 'select' && store.getState().selectedIds.size > 0) {
+                store.setSelection(new Set());
+            }
+        });
+    }, [store]);
+
     // Inline text editing. The hook wires the TextTool's intent callback and
     // owns the editor session state. We render the <TextEditor /> below when
     // a session is active, and add a native dblclick handler so any tool
