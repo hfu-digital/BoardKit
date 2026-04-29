@@ -3,6 +3,7 @@ import { Minus, Plus, Undo, Redo, HelpCircle, FilePlus, X } from 'lucide-react';
 import { useViewport } from '../hooks/useViewport';
 import { useHistory } from '../hooks/useHistory';
 import { usePageNavigation } from '../hooks/usePageNavigation';
+import { steppedZoom } from '../engine/viewport';
 import { Tooltip } from './Tooltip';
 
 export interface BottomControlsProps {
@@ -16,8 +17,6 @@ export interface BottomControlsProps {
     hidePages?: boolean;
 }
 
-const ZOOM_STEPS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
-
 /**
  * Excalidraw-style bottom-left bar: zoom in/out + reset, undo/redo,
  * page nav, and a help shortcut. Each subsection is its own .bk-bottom-bar
@@ -30,9 +29,7 @@ export function BottomControls({ className, onHelpClick, hidePages }: BottomCont
     const activePageId = activePage?.id ?? null;
 
     const stepZoom = (dir: -1 | 1) => {
-        const idx = nearestStep(viewport.zoom);
-        const next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + dir))];
-        zoomTo(next);
+        zoomTo(steppedZoom(viewport.zoom, dir));
     };
 
     return (
@@ -123,19 +120,6 @@ export function BottomControls({ className, onHelpClick, hidePages }: BottomCont
             )}
         </div>
     );
-}
-
-function nearestStep(zoom: number): number {
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < ZOOM_STEPS.length; i++) {
-        const d = Math.abs(ZOOM_STEPS[i] - zoom);
-        if (d < bestDist) {
-            bestDist = d;
-            bestIdx = i;
-        }
-    }
-    return bestIdx;
 }
 
 function PageNav({

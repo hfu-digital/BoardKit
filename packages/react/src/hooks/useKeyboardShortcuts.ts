@@ -9,7 +9,7 @@ import {
     mergeBounds,
 } from '@hfu.digital/boardkit-core';
 import type { Element, Point } from '@hfu.digital/boardkit-core';
-import { MIN_ZOOM, MAX_ZOOM } from '../engine/viewport';
+import { MIN_ZOOM, MAX_ZOOM, steppedZoom, zoomToPoint } from '../engine/viewport';
 
 // Module-level clipboard (not system clipboard)
 let internalClipboard: string | null = null;
@@ -230,6 +230,37 @@ export function useKeyboardShortcuts(): void {
                     zoom: 1,
                     offset: { x: 0, y: 0 },
                 }));
+                return;
+            }
+
+            // Zoom in: Ctrl/Cmd + = (also '+' for keyboards where + is the
+            // unshifted key, e.g. German layouts).
+            if (isCtrl && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                const { viewport } = store.getState();
+                const newZoom = steppedZoom(viewport.zoom, 1);
+                if (newZoom === viewport.zoom) return;
+                const zoomDelta = newZoom / viewport.zoom - 1;
+                const center: Point = {
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                };
+                store.updateViewport((v) => zoomToPoint(v, center, zoomDelta));
+                return;
+            }
+
+            // Zoom out: Ctrl/Cmd + -
+            if (isCtrl && e.key === '-') {
+                e.preventDefault();
+                const { viewport } = store.getState();
+                const newZoom = steppedZoom(viewport.zoom, -1);
+                if (newZoom === viewport.zoom) return;
+                const zoomDelta = newZoom / viewport.zoom - 1;
+                const center: Point = {
+                    x: window.innerWidth / 2,
+                    y: window.innerHeight / 2,
+                };
+                store.updateViewport((v) => zoomToPoint(v, center, zoomDelta));
                 return;
             }
 

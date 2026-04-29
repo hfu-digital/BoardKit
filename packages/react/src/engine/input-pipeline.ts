@@ -207,12 +207,44 @@ export class InputPipeline {
 
     private handleWheel(e: WheelEvent): void {
         e.preventDefault();
-        const delta = -e.deltaY * 0.001;
         const rect = this.canvas.getBoundingClientRect();
         const cursor: Point = {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
         };
-        this.onViewportChange?.('zoom', delta, cursor);
+
+        // macOS trackpad pinch-zoom synthesizes a wheel event with `ctrlKey=true`.
+        // Cmd+scroll (Mac) / Ctrl+scroll (Win/Linux) is the modifier-zoom shortcut.
+        if (e.ctrlKey || e.metaKey) {
+            // Pinch deltas arrive in small continuous pixels — a tighter factor
+            // than the old `0.001` keeps pinch from over-zooming. Mouse wheel
+            // ticks (large deltaY) under Cmd/Ctrl still feel responsive.
+            const delta = -e.deltaY * 0.01;
+            this.onViewportChange?.('zoom', delta, cursor);
+            return;
+        }
+
+        // Trackpad two-finger scroll (or unmodified mouse wheel) → pan.
+        // Normalize line/page deltaModes so all input devices share pixel units.
+        const lineHeight = 16;
+        const pageHeight = 100;
+        const factor = e.deltaMode === 1 ? lineHeight : e.deltaMode === 2 ? pageHeight : 1;
+        let dx = e.deltaX * factor;
+        let dy = e.deltaY * factor;
+
+        // Shift+wheel on a vertical-only mouse wheel scrolls horizontally.
+        if (e.shiftKey && dx === 0 && dy !== 0) {
+            dx = dy;
+            dy = 0;
+        }
+
+        // Negate so a "scroll down" gesture reveals lower content. Pan delta is
+        // applied to viewport.offset, which is the screen position of the world
+        // origin — increasing offset.y moves content down, so scrolling down
+        // (positive deltaY) means offset.y must decrease.
+        this.onViewportChange?.('pan', {
+            x: dx === 0 ? 0 : -dx,
+            y: dy === 0 ? 0 : -dy,
+        });
     }
 }

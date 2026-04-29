@@ -8,6 +8,26 @@ export interface ViewportState {
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 5.0;
 
+export const ZOOM_STEPS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4] as const;
+
+export function nearestZoomStep(zoom: number): number {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < ZOOM_STEPS.length; i++) {
+        const d = Math.abs(ZOOM_STEPS[i] - zoom);
+        if (d < bestDist) {
+            bestDist = d;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
+export function steppedZoom(zoom: number, dir: -1 | 1): number {
+    const idx = nearestZoomStep(zoom);
+    return ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + dir))];
+}
+
 export function createViewport(): ViewportState {
     return { offset: { x: 0, y: 0 }, zoom: 1.0 };
 }
