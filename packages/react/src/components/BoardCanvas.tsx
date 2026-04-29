@@ -199,6 +199,7 @@ export function BoardCanvas({
                             activeTool: store.getState().activeTool,
                         },
                         result.bindingPreview ?? [],
+                        result.alignmentGuides ?? [],
                     );
                 }
                 if (result.mutations && result.mutations.length > 0) {

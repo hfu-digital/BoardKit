@@ -1,4 +1,9 @@
-import type { BindingPreview, Element, Rect } from '@hfu.digital/boardkit-core';
+import type {
+    AlignmentGuide,
+    BindingPreview,
+    Element,
+    Rect,
+} from '@hfu.digital/boardkit-core';
 import type { CursorPosition } from '@hfu.digital/boardkit-core';
 import { BoardRenderer, type RenderContext } from '@hfu.digital/boardkit-core';
 import { renderStaticLayer } from './static-layer';
@@ -23,6 +28,7 @@ export class Canvas2DRenderer extends BoardRenderer {
     private selections: Rect[] = [];
     private selectedIds = new Set<string>();
     private bindingPreviews: BindingPreview[] = [];
+    private alignmentGuides: AlignmentGuide[] = [];
     private renderContext: RenderContext = {
         viewport: { offset: { x: 0, y: 0 }, zoom: 1 },
         selectedIds: new Set(),
@@ -81,6 +87,7 @@ export class Canvas2DRenderer extends BoardRenderer {
         selections: Rect[],
         context: RenderContext,
         bindingPreviews: BindingPreview[] = [],
+        alignmentGuides: AlignmentGuide[] = [],
     ): void {
         this.preview = preview;
         this.cursors = cursors;
@@ -88,6 +95,7 @@ export class Canvas2DRenderer extends BoardRenderer {
         this.renderContext = context;
         this.selectedIds = context.selectedIds;
         this.bindingPreviews = bindingPreviews;
+        this.alignmentGuides = alignmentGuides;
     }
 
     setParticipantColors(colors: Map<string, { color: string; name: string }>): void {
@@ -147,6 +155,7 @@ export class Canvas2DRenderer extends BoardRenderer {
                     this.renderContext.viewport,
                     this.participantColors,
                     this.bindingPreviews,
+                    this.alignmentGuides,
                 );
             }
         };

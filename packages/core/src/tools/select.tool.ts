@@ -19,6 +19,10 @@ import {
     type HandleId,
 } from '../scene/handles';
 import {
+    type AlignmentGuide,
+    snapToAlignment,
+} from '../scene/alignment';
+import {
     Tool,
     type InputEvent,
     type ToolResult,
@@ -28,6 +32,14 @@ import {
 type SelectMode = 'none' | 'drag' | 'rubberBand' | 'resize';
 
 const DRAG_THRESHOLD_PX = 5;
+// Figma-style snap distance, expressed in screen pixels. Scaled by 1/zoom
+// when applied so the snap "feel" is constant regardless of viewport zoom.
+const SNAP_THRESHOLD_PX = 5;
+// Element types whose rect bounds are meaningful for alignment matching.
+// Strokes / lines / arrows have point arrays whose bounding boxes don't
+// correspond to a visual edge a user would intuit, so they're excluded
+// from both the moving set and the static set.
+const SNAP_ELIGIBLE_TYPES = new Set(['shape', 'text', 'image']);
 
 /**
  * Selection / move / resize tool. State (selection ids) lives in the store —
@@ -149,19 +161,29 @@ export class SelectTool extends Tool {
         }
 
         if (this.mode === 'drag') {
-            const delta: Point = {
+            const rawDelta: Point = {
                 x: event.position.x - this.startPos.x,
                 y: event.position.y - this.startPos.y,
             };
-            if (!this.dragArmed && Math.hypot(delta.x, delta.y) >= DRAG_THRESHOLD_PX) {
+            if (!this.dragArmed && Math.hypot(rawDelta.x, rawDelta.y) >= DRAG_THRESHOLD_PX) {
                 this.dragArmed = true;
             }
             if (!this.dragArmed) {
                 return { cursor: 'move', state: this.state };
             }
+            const { delta, guides } = this.applyAlignmentSnap(
+                rawDelta,
+                scene,
+                event.modifiers.meta,
+            );
             const moved = moveElements(this.dragOriginals, delta);
             const preview = this.propagateBindings(scene, moved);
-            return { preview, cursor: 'move', state: this.state };
+            return {
+                preview,
+                cursor: 'move',
+                state: this.state,
+                alignmentGuides: guides,
+            };
         }
 
         if (this.mode === 'rubberBand') {
@@ -213,10 +235,17 @@ export class SelectTool extends Tool {
         }
 
         if (this.mode === 'drag' && this.dragArmed) {
-            const delta: Point = {
+            const rawDelta: Point = {
                 x: event.position.x - this.startPos.x,
                 y: event.position.y - this.startPos.y,
             };
+            // Apply the same snap that produced the on-screen preview, so
+            // the persisted positions match what the user saw at release.
+            const { delta } = this.applyAlignmentSnap(
+                rawDelta,
+                scene,
+                event.modifiers.meta,
+            );
             const moved = moveElements(this.dragOriginals, delta);
             const all = this.propagateBindings(scene, moved);
             const mutations = all.map((el) => ({
@@ -274,6 +303,57 @@ export class SelectTool extends Tool {
             };
             return resizeElement(el, mapped);
         });
+    }
+
+    /**
+     * Figma-style alignment snap. Takes the unmodified pointer delta and
+     * returns a possibly-adjusted delta plus the guide lines to draw.
+     *
+     * Snap targets are the bounding rects of every shape/text/image on the
+     * active page that isn't part of the current drag. Strokes and linear
+     * elements are excluded — their bounding boxes don't correspond to
+     * visual edges a user would intuit aligning to.
+     *
+     * Snap threshold is in screen pixels and scaled to world units by the
+     * current zoom so the snap "feel" stays constant across zoom levels.
+     * Holding Meta/⌘ disables snapping (Figma convention).
+     */
+    private applyAlignmentSnap(
+        rawDelta: Point,
+        scene: SceneState,
+        suppress: boolean,
+    ): { delta: Point; guides: AlignmentGuide[] } {
+        if (suppress) return { delta: rawDelta, guides: [] };
+
+        const movingOriginals = this.dragOriginals.filter((el) =>
+            SNAP_ELIGIBLE_TYPES.has(el.type),
+        );
+        if (movingOriginals.length === 0) return { delta: rawDelta, guides: [] };
+
+        const origBounds = mergeBounds(movingOriginals.map(calculateBounds));
+        const movingBounds: Rect = {
+            x: origBounds.x + rawDelta.x,
+            y: origBounds.y + rawDelta.y,
+            width: origBounds.width,
+            height: origBounds.height,
+        };
+
+        const movedIds = new Set(this.dragOriginals.map((el) => el.id));
+        const others: Rect[] = [];
+        for (const [id, el] of scene.elements) {
+            if (movedIds.has(id)) continue;
+            if (el.pageId !== this.currentPageId) continue;
+            if (!SNAP_ELIGIBLE_TYPES.has(el.type)) continue;
+            others.push(calculateBounds(el));
+        }
+        if (others.length === 0) return { delta: rawDelta, guides: [] };
+
+        const threshold = SNAP_THRESHOLD_PX / Math.max(this.currentZoom, 0.0001);
+        const snap = snapToAlignment(movingBounds, others, threshold);
+        return {
+            delta: { x: rawDelta.x + snap.dx, y: rawDelta.y + snap.dy },
+            guides: snap.guides,
+        };
     }
 
     /**

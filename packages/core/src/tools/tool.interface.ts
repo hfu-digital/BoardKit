@@ -2,6 +2,7 @@ import type { Point, Rect } from '../types/elements';
 import type { ElementMutation } from '../types/events';
 import type { Element } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
+import type { AlignmentGuide } from '../scene/alignment';
 
 export interface InputEvent {
     type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel';
@@ -43,6 +44,8 @@ export interface ToolResult {
     selectionRect?: Rect;
     /** LinearTool emits these while dragging near a shape. BoardCanvas forwards them to the interactive layer. */
     bindingPreview?: BindingPreview[];
+    /** SelectTool emits these while a drag is snapping to neighbour edges/centres. The interactive layer paints them as Figma-style alignment lines. */
+    alignmentGuides?: AlignmentGuide[];
 }
 
 export abstract class Tool {

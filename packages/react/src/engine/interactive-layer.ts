@@ -1,4 +1,5 @@
 import type {
+    AlignmentGuide,
     BindingPreview,
     Element,
     Rect,
@@ -14,6 +15,7 @@ import {
 import type { ViewportState } from './viewport';
 import { applyViewportTransform, worldToScreen } from './viewport';
 import { renderElement } from './static-layer';
+import { renderAlignmentGuides } from './alignment-renderer';
 import { drawShapePath } from './element-renderers/shape.renderer';
 
 export function renderInteractiveLayer(
@@ -26,6 +28,7 @@ export function renderInteractiveLayer(
     viewport: ViewportState,
     participantColors: Map<string, { color: string; name: string }>,
     bindingPreviews: BindingPreview[] = [],
+    alignmentGuides: AlignmentGuide[] = [],
 ): void {
     ctx.save();
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -76,6 +79,13 @@ export function renderInteractiveLayer(
     }
 
     ctx.restore();
+
+    // Alignment guides (Figma-style snap lines). The renderer applies its
+    // own world→screen transform internally, so it must run outside the
+    // world-transform `save/restore` pair above. Same pattern as cursors.
+    if (alignmentGuides.length > 0) {
+        renderAlignmentGuides(ctx, alignmentGuides, viewport);
+    }
 
     // Render remote cursors in screen space
     ctx.save();
