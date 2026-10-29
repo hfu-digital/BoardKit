@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { Board, Page, Element } from '@hfu.digital/boardkit-core';
 import { BoardStorage, type CreateBoardInput, type CreatePageInput } from '../interfaces/board-storage.interface';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
@@ -11,6 +11,7 @@ export class BoardService {
     ) {}
 
     async createBoard(data: CreateBoardInput): Promise<Board> {
+        if (!data || typeof data.name !== 'string' || !data.name.trim() || data.name.length > 200 || (data.sessionType !== undefined && !['persistent', 'ephemeral'].includes(data.sessionType))) throw new BadRequestException('Invalid board');
         const board = await this.storage.createBoard(data);
         // Create default first page
         await this.storage.createPage(board.id, {
@@ -49,7 +50,9 @@ export class BoardService {
         data: Partial<Board>,
         userId: string,
     ): Promise<Board> {
-        const board = await this.storage.updateBoard(id, data);
+        if (!data || (data.name !== undefined && (typeof data.name !== 'string' || !data.name.trim() || data.name.length > 200))) throw new BadRequestException('Invalid board name');
+        const changes = data.name === undefined ? {} : { name: data.name };
+        const board = await this.storage.updateBoard(id, changes);
         const sequence = await this.eventLog.getLatestSequence(id);
         await this.eventLog.append({
             boardId: id,
@@ -85,7 +88,9 @@ export class BoardService {
         data?: CreatePageInput,
         userId?: string,
     ): Promise<Page> {
+        if (data && ((data.name !== undefined && (typeof data.name !== 'string' || data.name.length > 200)) || !Number.isSafeInteger(data.order))) throw new BadRequestException('Invalid page');
         const pages = await this.storage.getPages(boardId);
+        if (pages.length >= 100) throw new BadRequestException('Page limit exceeded');
         const page = await this.storage.createPage(boardId, {
             name: data?.name ?? `Page ${pages.length + 1}`,
             order: data?.order ?? pages.length,
@@ -115,6 +120,8 @@ export class BoardService {
         pageIds: string[],
         userId?: string,
     ): Promise<void> {
+        if (!Array.isArray(pageIds) || pageIds.length > 1000 || pageIds.some(id => typeof id !== 'string') || new Set(pageIds).size !== pageIds.length) throw new BadRequestException('Invalid page order');
+        for (const pageId of pageIds) await this.assertPage(boardId, pageId);
         await this.storage.reorderPages(boardId, pageIds);
         if (userId) {
             const sequence =
@@ -135,7 +142,8 @@ export class BoardService {
         boardId: string,
         userId?: string,
     ): Promise<void> {
-        await this.storage.deletePage(pageId);
+        await this.assertPage(boardId, pageId);
+        await this.storage.deletePage(pageId, boardId);
         if (userId) {
             const sequence =
                 await this.eventLog.getLatestSequence(boardId);
@@ -151,7 +159,13 @@ export class BoardService {
         }
     }
 
-    async getPageElements(pageId: string): Promise<Element[]> {
+    async assertPage(boardId: string, pageId: string): Promise<void> {
+        const page = await this.storage.getPage(pageId);
+        if (!page || page.boardId !== boardId) throw new ForbiddenException('Page does not belong to board');
+    }
+
+    async getPageElements(pageId: string, boardId?: string): Promise<Element[]> {
+        if (boardId) await this.assertPage(boardId, pageId);
         return this.storage.getElements(pageId);
     }
 }

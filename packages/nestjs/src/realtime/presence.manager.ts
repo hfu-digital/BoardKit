@@ -13,11 +13,38 @@ export class PresenceManager {
     private boards = new Map<string, Map<string, PresenceEntry>>();
     private presenceTtlMs = 30_000;
 
+    private timer: ReturnType<typeof setInterval> | undefined;
+
+    onModuleDestroy(): void {
+        if (this.timer) clearInterval(this.timer);
+        this.timer = undefined;
+        this.boards.clear();
+    }
+
+    touch(boardId: string, userId: string): void {
+        const entry = this.boards.get(boardId)?.get(userId);
+        if (entry) entry.lastSeen = Date.now();
+    }
+
+    private startCleanup(): void {
+        if (this.timer) return;
+        this.timer = setInterval(() => {
+            for (const id of this.boards.keys()) this.pruneIdle(id);
+            if (!this.boards.size && this.timer) { clearInterval(this.timer); this.timer = undefined; }
+        }, Math.max(1, Math.min(this.presenceTtlMs, 30_000)));
+        this.timer.unref?.();
+    }
+
     setTtl(ttlMs: number): void {
+        if (!Number.isFinite(ttlMs) || ttlMs <= 0) throw new RangeError('Presence TTL must be positive');
+        if (this.timer) clearInterval(this.timer);
+        this.timer = undefined;
         this.presenceTtlMs = ttlMs;
+        if (this.boards.size) this.startCleanup();
     }
 
     addParticipant(boardId: string, participant: Participant): void {
+        this.startCleanup();
         if (!this.boards.has(boardId)) {
             this.boards.set(boardId, new Map());
         }
@@ -63,5 +90,6 @@ export class PresenceManager {
                 board.delete(userId);
             }
         }
+        if (!board.size) this.boards.delete(boardId);
     }
 }

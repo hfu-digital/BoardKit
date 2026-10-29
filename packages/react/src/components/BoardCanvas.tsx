@@ -381,6 +381,12 @@ export function BoardCanvas({
         });
     }, [store, renderer]);
 
+    useEffect(() => {
+        const sync = () => renderer.setCursors(Array.from(store.getState().cursors.values()));
+        sync();
+        return store.subscribe('cursors', sync);
+    }, [store, renderer]);
+
     const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (readOnly) return;
         const rect = containerRef.current?.getBoundingClientRect();

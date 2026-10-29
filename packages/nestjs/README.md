@@ -105,3 +105,10 @@ import {
 ## License
 
 [MIT](../../LICENSE)
+
+## Node package format
+
+The published build is explicit CommonJS, with declarations and both `import` and
+`require` export conditions. This supports Node 18+ servers without an extensionless
+ES module loader and remains consumable by browser bundlers. After building, run
+`bun run test:runtime` to check actual Node loading (in addition to source tests).

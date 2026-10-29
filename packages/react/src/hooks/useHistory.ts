@@ -27,12 +27,7 @@ export function useHistory(): UseHistoryResult {
         const { history } = store.getState();
         const mutations = history.undo();
         if (mutations) {
-            // Apply undo mutations to scene
-            // Scene update will trigger re-render
-            store.updateScene((scene) => {
-                // Mutations are applied by the store layer
-                return scene;
-            });
+            store.applyHistoryMutations(mutations);
         }
     }, [store]);
 
@@ -40,9 +35,7 @@ export function useHistory(): UseHistoryResult {
         const { history } = store.getState();
         const mutations = history.redo();
         if (mutations) {
-            store.updateScene((scene) => {
-                return scene;
-            });
+            store.applyHistoryMutations(mutations);
         }
     }, [store]);
 

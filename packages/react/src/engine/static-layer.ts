@@ -6,6 +6,7 @@ import { renderStroke } from './element-renderers/stroke.renderer';
 import { renderShape } from './element-renderers/shape.renderer';
 import { renderText } from './element-renderers/text.renderer';
 import { renderImage } from './element-renderers/image.renderer';
+import { isElementVisible } from './visibility';
 import { renderLinear } from './element-renderers/linear.renderer';
 
 export function renderStaticLayer(
@@ -24,8 +25,12 @@ export function renderStaticLayer(
     const sceneSource = elementsMap ?? buildElementsMap(elements);
     const scene: SceneState = { elements: sceneSource, elementOrder: [] };
 
+    const width = parseFloat(ctx.canvas.style.width) || ctx.canvas.width;
+    const height = parseFloat(ctx.canvas.style.height) || ctx.canvas.height;
     for (const element of elements) {
-        renderElement(ctx, element, scene);
+        if (isElementVisible(element, viewport, width, height, scene)) {
+            renderElement(ctx, element, scene);
+        }
     }
 
     ctx.restore();

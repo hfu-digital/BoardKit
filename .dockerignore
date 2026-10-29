@@ -1,0 +1,27 @@
+
+.env
+.env.*
+!.env.example
+.git
+node_modules
+**/node_modules
+**/dist
+**/.next
+coverage
+*.log
+**/backup*.json
+**/backups
+*.pem
+*.key
+
+# Local credentials and operational data.
+.npmrc
+.npm
+.ssh
+**/*.pem
+**/*.key
+uploads
+private-storage
+exports
+public/uploads/*
+!public/uploads/.gitkeep

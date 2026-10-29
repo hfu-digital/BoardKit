@@ -196,6 +196,14 @@ describe('getDependentLinears', () => {
 });
 
 describe('recomputeBoundLinear', () => {
+    it('keeps circuit wires orthogonal and attached to port centers after moving a gate', () => {
+        const a = makeShape('a', { x: 10, y: 20, width: 10, height: 10 });
+        const b = makeShape('b', { x: 200, y: 100, width: 10, height: 10 });
+        const wire = makeLinear('wire', { x: 0, y: 0 }, { x: 100, y: 0 }, { startBinding: { elementId: 'a' }, endBinding: { elementId: 'b' } });
+        wire.data.specialized = { kind: 'circuit-wire' };
+        const moved = recomputeBoundLinear(wire, loadElements([a, b, wire]));
+        expect(moved.data.points).toEqual([{ x: 15, y: 25 }, { x: 110, y: 25 }, { x: 110, y: 105 }, { x: 205, y: 105 }]);
+    });
     it('updates points, bounds, and updatedAt', () => {
         const shape = makeShape('s1', { x: 0, y: 0, width: 100, height: 60 });
         const scene = loadElements([shape]);

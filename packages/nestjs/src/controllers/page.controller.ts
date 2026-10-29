@@ -72,7 +72,7 @@ export class PageController {
         if (!hasAccess) {
             throw new ForbiddenException('Insufficient permissions');
         }
-        return this.boardService.getPageElements(pageId);
+        return this.boardService.getPageElements(pageId, boardId);
     }
 
     @Delete(':pageId')

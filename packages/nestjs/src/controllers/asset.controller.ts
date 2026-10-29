@@ -10,6 +10,7 @@ import {
     NotFoundException,
     UnauthorizedException,
     ForbiddenException,
+    PayloadTooLargeException,
 } from '@nestjs/common';
 import { AssetService } from '../domain/asset.service';
 import { PermissionService } from '../domain/permission.service';
@@ -59,6 +60,7 @@ export class AssetController {
         if (!hasAccess) {
             throw new ForbiddenException('Insufficient permissions');
         }
+        if (typeof body?.file !== 'string' || body.file.length > 36 * 1024 * 1024) throw new PayloadTooLargeException();
         const buffer = Buffer.from(body.file, 'base64');
         const asset = await this.assetService.upload(boardId, buffer, {
             mimeType: body.mimeType,
@@ -84,10 +86,12 @@ export class AssetController {
         const authHeader = req.headers['authorization'];
         const bearerHeader = Array.isArray(authHeader) ? authHeader[0] : authHeader;
         let authorized = false;
+        let authenticatedUserId: string | undefined;
 
         if (bearerHeader && bearerHeader.startsWith('Bearer ')) {
             const user = await this.authGuard.validateRequest(bearerHeader.slice(7));
             if (user) {
+                authenticatedUserId = user.userId;
                 authorized = await this.permissionService.checkAccess(
                     boardId,
                     user.userId,
@@ -103,7 +107,7 @@ export class AssetController {
                 : shareHeaderRaw;
             const shareToken = shareTokenQuery ?? shareHeader;
             if (shareToken) {
-                const resolved = await this.permissionService.resolveShareLink(shareToken);
+                const resolved = await this.permissionService.resolveShareLink(shareToken, authenticatedUserId);
                 if (resolved && resolved.boardId === boardId) {
                     authorized = true;
                 }
@@ -122,12 +126,12 @@ export class AssetController {
         const buffer = await this.assetService.download(record.storageKey);
 
         reply
+            .header('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+            .header('X-Content-Type-Options', 'nosniff')
             .header('Content-Type', record.mimeType)
             .header('Content-Length', record.sizeBytes)
-            // Asset ids are immutable uuids — safe to cache aggressively. The
-            // private directive prevents shared caches (CDNs, proxies) from
-            // serving the bytes to other users without re-checking auth.
-            .header('Cache-Control', 'private, max-age=31536000, immutable')
+            // Recheck authorization on subsequent requests, including after revocation.
+            .header('Cache-Control', 'private, no-store')
             .send(buffer);
     }
 }

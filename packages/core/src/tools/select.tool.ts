@@ -102,7 +102,7 @@ export class SelectTool extends Tool {
                         this.state = 'active';
                         this.resizeHandle = handle;
                         this.resizeOriginalBounds = merged;
-                        this.resizeOriginals = Array.from(this.currentSelection)
+                        this.resizeOriginals = Array.from(this.expandGroups(this.currentSelection, scene))
                             .map((id) => scene.elements.get(id))
                             .filter((el): el is Element => Boolean(el));
                         return { cursor: handleCursor(handle), state: this.state };
@@ -112,13 +112,15 @@ export class SelectTool extends Tool {
         }
 
         // 2) Element hit-test → drag.
-        const hitId = this.hitTest(event.position, scene);
+        const hit = this.hitTest(event.position, scene);
+        const hitId = hit ? this.outerGroup(hit, scene) : null;
         if (hitId) {
             let next: Set<string>;
             if (event.modifiers.shift) {
                 next = new Set(this.currentSelection);
-                if (next.has(hitId)) next.delete(hitId);
-                else next.add(hitId);
+                const family = this.expandGroups(new Set([hitId]), scene);
+                if (next.has(hitId)) for (const id of family) next.delete(id);
+                else for (const id of family) next.add(id);
             } else if (this.currentSelection.has(hitId)) {
                 // Click inside an existing multi-selection keeps it intact.
                 next = new Set(this.currentSelection);
@@ -126,6 +128,7 @@ export class SelectTool extends Tool {
                 next = new Set([hitId]);
             }
 
+            next = this.expandGroups(next, scene);
             this.mode = 'drag';
             this.state = 'active';
             this.dragOriginals = Array.from(next)
@@ -199,7 +202,7 @@ export class SelectTool extends Tool {
             return {
                 cursor: 'crosshair',
                 state: this.state,
-                selection: next,
+                selection: this.expandGroups(next, scene),
                 selectionRect: rect ?? undefined,
             };
         }
@@ -400,8 +403,36 @@ export class SelectTool extends Tool {
         return [...recomputedFirstPass, ...externalDependents];
     }
 
+    /** Select the entire outer group when a visible child is clicked. */
+    private outerGroup(id: string, scene: SceneState): string {
+        const seen = new Set<string>([id]);
+        let current = id;
+        while (true) {
+            const parent = Array.from(scene.elements.values()).find((el) =>
+                el.type === 'group' && el.pageId === this.currentPageId &&
+                el.data.childIds.includes(current) && !seen.has(el.id));
+            if (!parent) return current;
+            current = parent.id;
+            seen.add(current);
+        }
+    }
+
+    /** Include nested children once, with cycle protection for imported data. */
+    private expandGroups(ids: Set<string>, scene: SceneState): Set<string> {
+        const expanded = new Set<string>();
+        const visit = (id: string): void => {
+            if (expanded.has(id)) return;
+            const el = scene.elements.get(id);
+            if (!el || el.pageId !== this.currentPageId) return;
+            expanded.add(id);
+            if (el.type === 'group') for (const child of el.data.childIds) visit(child);
+        };
+        for (const id of ids) visit(this.outerGroup(id, scene));
+        return expanded;
+    }
+
     private mergedSelectionBounds(scene: SceneState): Rect | null {
-        const els = Array.from(this.currentSelection)
+        const els = Array.from(this.expandGroups(this.currentSelection, scene))
             .map((id) => scene.elements.get(id))
             .filter((el): el is Element => Boolean(el));
         if (els.length === 0) return null;

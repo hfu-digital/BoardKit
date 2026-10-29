@@ -50,7 +50,7 @@ export function applyViewportTransform(
     ctx: CanvasRenderingContext2D,
     viewport: ViewportState,
 ): void {
-    ctx.setTransform(
+    ctx.transform(
         viewport.zoom,
         0,
         0,

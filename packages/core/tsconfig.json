@@ -2,9 +2,16 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "composite": true,
-        "lib": ["ES2022", "DOM"],
+        "lib": [
+            "ES2022",
+            "DOM"
+        ],
         "rootDir": "src",
-        "outDir": "dist"
+        "outDir": "dist",
+        "module": "CommonJS",
+        "moduleResolution": "Node"
     },
-    "include": ["src"]
+    "include": [
+        "src"
+    ]
 }

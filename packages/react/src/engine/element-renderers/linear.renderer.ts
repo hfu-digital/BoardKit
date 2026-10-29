@@ -15,7 +15,13 @@ export function renderLinear(
     element: LinearElement,
     pointsOverride?: Point[],
 ): void {
-    const points = pointsOverride ?? element.data.points;
+    let points = pointsOverride ?? element.data.points;
+    // Resolve the entire route from live endpoints, including remote gate moves.
+    if (element.data.specialized?.kind === 'circuit-wire' && points.length >= 2) {
+        const start = points[0], end = points[points.length - 1];
+        const middle = (start.x + end.x) / 2;
+        points = [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end];
+    }
     const { style, arrowEnd, arrowStart, roughness, seed } = element.data;
     if (points.length < 2) return;
 

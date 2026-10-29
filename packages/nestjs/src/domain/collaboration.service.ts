@@ -3,6 +3,8 @@ import type { Participant, ElementMutation } from '@hfu.digital/boardkit-core';
 import { BoardStorage, type ElementUpsert } from '../interfaces/board-storage.interface';
 import { EventLogStorage } from '../interfaces/event-log-storage.interface';
 
+import { validateMutations } from './security-validation';
+
 export type SessionState = 'created' | 'active' | 'idle' | 'archived';
 
 export interface BoardSession {
@@ -144,7 +146,8 @@ export class CollaborationService {
         const session = this.sessions.get(boardId);
         if (!session) throw new Error(`No active session for board ${boardId}`);
 
-        session.pendingMutations.push(...mutations);
+        validateMutations(mutations, userId);
+        await this.storage.applyScopedMutations(boardId, userId, mutations);
         session.currentSequence++;
 
         // Log events
