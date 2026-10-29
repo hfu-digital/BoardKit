@@ -45,7 +45,8 @@ inputs; feedback loops produce a useful error.
 
 ## Integration and release
 
-This change spans independent BoardKit, API, and website repositories. The
+This change spans independent BoardKit, API, and website repositories. BoardKit
+2026.10.29 contains these tools. The
 website's existing published `2026.04.25` BoardKit dependency does not contain
 `SpecializedTools`. Before production deployment:
 
