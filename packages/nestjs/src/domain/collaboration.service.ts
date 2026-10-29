@@ -108,21 +108,6 @@ export class CollaborationService {
             session.state = 'active';
         }
 
-        // Determine sync type
-        if (lastSequence !== undefined && lastSequence < session.currentSequence) {
-            const events = await this.eventLog.getEvents(boardId, lastSequence);
-            if (events.length > 0 && events.length < 1000) {
-                const missedMutations: ElementMutation[] = events.map((e) => ({
-                    type: (e.payload as any).mutationType ?? 'update',
-                    elementId: (e.payload as any).elementId ?? '',
-                    pageId: e.pageId ?? '',
-                    data: (e.payload as any).data,
-                    timestamp: new Date(e.timestamp).getTime(),
-                }));
-                return { session, syncType: 'delta', missedMutations };
-            }
-        }
-
         return { session, syncType: 'full' };
     }
 
@@ -138,20 +123,54 @@ export class CollaborationService {
         }
     }
 
+    private receipts = new Map<string, { fingerprint: string; result: Promise<{ sequence: number; replayed: boolean }> }>();
+
     async applyMutations(
         boardId: string,
         userId: string,
         mutations: ElementMutation[],
+        requestId?: string,
     ): Promise<number> {
+        return (await this.applyMutationsDetailed(boardId, userId, mutations, requestId)).sequence;
+    }
+
+    async applyMutationsDetailed(boardId: string, userId: string, mutations: ElementMutation[], requestId?: string): Promise<{ sequence: number; replayed: boolean }> {
+        validateMutations(mutations, userId);
+        if (!requestId) return { sequence: await this.persistMutations(boardId, userId, mutations), replayed: false };
+        const key = JSON.stringify([boardId, userId, requestId]);
+        const fingerprint = JSON.stringify(mutations);
+        const existing = this.receipts.get(key);
+        if (existing) {
+            if (existing.fingerprint !== fingerprint) throw new Error('Request ID reused with different mutations');
+            return { ...await existing.result, replayed: true };
+        }
+        const result = (async () => {
+            const committed = await this.storage.commitMutations(boardId, userId, mutations, requestId);
+            if (committed !== null) {
+                const result = typeof committed === 'number' ? { sequence: committed, replayed: false } : committed;
+                const sequence = result.sequence;
+                const session = this.sessions.get(boardId);
+                if (session) session.currentSequence = Math.max(session.currentSequence, sequence);
+                return result;
+            }
+            return { sequence: await this.persistMutations(boardId, userId, mutations), replayed: false };
+        })();
+        this.receipts.set(key, { fingerprint, result });
+        try { return await result; }
+        catch (error) { this.receipts.delete(key); throw error; }
+    }
+
+    private async persistMutations(boardId: string, userId: string, mutations: ElementMutation[]): Promise<number> {
         const session = this.sessions.get(boardId);
         if (!session) throw new Error(`No active session for board ${boardId}`);
 
         validateMutations(mutations, userId);
         await this.storage.applyScopedMutations(boardId, userId, mutations);
-        session.currentSequence++;
+        session.currentSequence = Math.max(session.currentSequence, await this.eventLog.getLatestSequence(boardId));
 
         // Log events
         for (const mutation of mutations) {
+            session.currentSequence++;
             await this.eventLog.append({
                 boardId,
                 pageId: mutation.pageId,

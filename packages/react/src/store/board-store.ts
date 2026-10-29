@@ -8,7 +8,7 @@ import type {
     GridConfig,
     ElementMutation,
 } from '@hfu.digital/boardkit-core';
-import { History, createScene, createDefaultGridConfig, addElement, removeElement, updateElement } from '@hfu.digital/boardkit-core';
+import { isElementLocked, History, createScene, createDefaultGridConfig, addElement, removeElement, updateElement } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from '../engine/viewport';
 import { createViewport } from '../engine/viewport';
 
@@ -20,6 +20,7 @@ export interface BoardError {
 }
 
 export interface BoardStoreState {
+    isHydrated: boolean;
     board: Board | null;
     pages: Page[];
     activePageId: string | null;
@@ -56,6 +57,7 @@ export class BoardStore {
 
     constructor() {
         this.state = {
+            isHydrated: false,
             board: null,
             pages: [],
             activePageId: null,
@@ -84,12 +86,26 @@ export class BoardStore {
         this.notify('board');
     }
 
+    setHydrated(value: boolean): void {
+        this.state.isHydrated = value;
+        this.notify('hydration');
+    }
+
     setPages(pages: Page[]): void {
         this.state.pages = pages;
+        if (!pages.some(p => p.id === this.state.activePageId)) this.state.activePageId = pages[0]?.id ?? null;
+        const ids = new Set(pages.map(p => p.id));
+        this.updateScene(scene => {
+            const elements = new Map([...scene.elements].filter(([, el]) => ids.has(el.pageId)));
+            return { elements, elementOrder: scene.elementOrder.filter(id => elements.has(id)) };
+        });
         this.notify('pages');
     }
 
     setActivePageId(pageId: string | null): void {
+        if (pageId !== null && !this.state.pages.some(p => p.id === pageId)) return;
+        this.state.selectedIds.clear();
+        this.notify('selection');
         this.state.activePageId = pageId;
         this.notify('pages');
     }
@@ -129,7 +145,7 @@ export class BoardStore {
 
     // Selection
     setSelection(ids: Set<string>): void {
-        this.state.selectedIds = ids;
+        this.state.selectedIds = new Set([...ids].filter(id => !isElementLocked(this.state.scene.elements.get(id))));
         this.notify('selection');
     }
 

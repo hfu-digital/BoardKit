@@ -149,3 +149,8 @@ export type Element =
     | TextElement
     | ImageElement
     | GroupElement;
+
+/** Persisted interaction lock; explicit data.specialized.locked=false unlocks it. */
+export function isElementLocked(element: Element | undefined): boolean {
+    return !!element && (element.data as { specialized?: { locked?: boolean } }).specialized?.locked === true;
+}

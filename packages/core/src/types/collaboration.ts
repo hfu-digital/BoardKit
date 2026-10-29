@@ -14,5 +14,6 @@ export interface Participant {
 export interface CursorPosition {
     userId: string;
     position: Point;
+    viewport?: { offset: Point; zoom: number };
     pageId: string;
 }

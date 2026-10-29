@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { deepMerge } from '@hfu.digital/boardkit-core';
+import { deepMerge, isElementLocked } from '@hfu.digital/boardkit-core';
 import type { Element, ElementMutation } from '@hfu.digital/boardkit-core';
 import { useBoardKit } from '../context/BoardKitProvider';
 
@@ -34,7 +34,7 @@ export function useElementMutations(): UseElementMutationsResult {
         (elementId: string, dataPatch: Partial<Element['data']>) => {
             const state = store.getState();
             const existing = state.scene.elements.get(elementId);
-            if (!existing) return;
+            if (!existing || (isElementLocked(existing) && (dataPatch as any).specialized?.locked !== false)) return;
 
             const nextData = deepMerge(existing.data as any, dataPatch as any);
             const nextElement: Element = {
@@ -63,6 +63,7 @@ export function useElementMutations(): UseElementMutationsResult {
 
     const replaceElement = useCallback(
         (element: Element) => {
+            if (isElementLocked(store.getState().scene.elements.get(element.id))) return;
             store.updateScene((scene) => {
                 const elements = new Map(scene.elements);
                 elements.set(element.id, element);
@@ -83,12 +84,13 @@ export function useElementMutations(): UseElementMutationsResult {
 
     const deleteElements = useCallback(
         (ids: string[]) => {
+            ids = ids.filter(id => !isElementLocked(store.getState().scene.elements.get(id)));
             if (ids.length === 0) return;
             const state = store.getState();
             const mutations: ElementMutation[] = [];
             for (const id of ids) {
                 const el = state.scene.elements.get(id);
-                if (!el) continue;
+                if (!el || isElementLocked(el)) continue;
                 mutations.push({
                     type: 'delete',
                     elementId: id,
@@ -130,7 +132,7 @@ export function useElementMutations(): UseElementMutationsResult {
                 const elements = new Map(scene.elements);
                 for (const id of ids) {
                     const el = elements.get(id);
-                    if (!el) continue;
+                    if (!el || isElementLocked(el)) continue;
                     let nextZ = el.zIndex;
                     if (direction === 'front') nextZ = maxZ + 1;
                     else if (direction === 'back') nextZ = minZ - 1;
@@ -164,7 +166,7 @@ export function useElementMutations(): UseElementMutationsResult {
                 const elementOrder = [...scene.elementOrder];
                 for (const id of ids) {
                     const el = elements.get(id);
-                    if (!el) continue;
+                    if (!el || isElementLocked(el)) continue;
                     const newId = `${el.type}-dup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
                     const data: any = JSON.parse(JSON.stringify(el.data));
                     if (data.position) {

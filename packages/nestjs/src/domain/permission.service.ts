@@ -4,8 +4,9 @@ import { BoardStorage } from '../interfaces/board-storage.interface';
 
 const ROLE_HIERARCHY: Record<string, number> = {
     viewer: 0,
-    editor: 1,
-    owner: 2,
+    commenter: 1,
+    editor: 2,
+    owner: 3,
 };
 
 @Injectable()
@@ -28,7 +29,7 @@ export class PermissionService {
         );
         if (!memberRole) return false;
 
-        const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 0;
+        const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? Infinity;
         const actualLevel = ROLE_HIERARCHY[memberRole] ?? 0;
         return actualLevel >= requiredLevel;
     }

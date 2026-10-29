@@ -18,7 +18,7 @@ export function PageNavigator({ className }: PageNavigatorProps) {
                     </button>
                     {pages.length > 1 && (
                         <button
-                            onClick={() => deletePage(page.id)}
+                            onClick={() => { void deletePage(page.id).catch(() => {}); }}
                             aria-label={`Delete ${page.name}`}
                         >
                             x
@@ -26,7 +26,7 @@ export function PageNavigator({ className }: PageNavigatorProps) {
                     )}
                 </div>
             ))}
-            <button onClick={addPage} aria-label="Add page">
+            <button onClick={() => { void addPage().catch(() => {}); }} aria-label="Add page">
                 +
             </button>
         </div>
