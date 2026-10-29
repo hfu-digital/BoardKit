@@ -26,8 +26,14 @@ export { BottomControls } from './BottomControls';
 export type { BottomControlsProps } from './BottomControls';
 export { ContextMenu } from './ContextMenu';
 export type { ContextMenuProps } from './ContextMenu';
-export { LibraryPanel } from './LibraryPanel';
-export type { LibraryPanelProps } from './LibraryPanel';
+export {
+    LibraryPanel,
+    insertLibraryItem,
+    DEFAULT_LIBRARY_PANEL_LABELS,
+    LIBRARY_PANEL_LOCAL_STORAGE_KEY,
+} from './LibraryPanel';
+export type { LibraryPanelProps, LibraryPanelLibrary, LibraryPanelLabels } from './LibraryPanel';
+export type { ParsedLibrary, ParsedLibraryItem } from '../lib/excalidrawlib-parser';
 export { OnboardingTour } from './OnboardingTour';
 export type { OnboardingTourProps } from './OnboardingTour';
 export { HamburgerMenu } from './HamburgerMenu';

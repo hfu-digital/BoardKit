@@ -10,7 +10,7 @@ export { useKeyboardShortcuts } from './useKeyboardShortcuts';
 export { usePageNavigation } from './usePageNavigation';
 export type { UsePageNavigationResult } from './usePageNavigation';
 export { useCollaboration } from './useCollaboration';
-export type { UseCollaborationResult, ConnectionState } from './useCollaboration';
+export type { UseCollaborationResult, ConnectionState, SaveState } from './useCollaboration';
 export { usePresence } from './usePresence';
 export type { UsePresenceResult } from './usePresence';
 export { useExport } from './useExport';

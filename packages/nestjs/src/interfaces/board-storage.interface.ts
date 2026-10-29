@@ -32,7 +32,18 @@ export interface ElementUpsert {
     createdBy: string;
 }
 
+export type MutationCommitResult = number | { sequence: number; replayed: boolean };
+export type PageChange =
+    | { type: 'add'; name?: string; order?: number }
+    | { type: 'rename'; pageId: string; name: string }
+    | { type: 'delete'; pageId: string }
+    | { type: 'reorder'; pageIds: string[] };
+export interface PageChangeResult { page?: Page; pages: Page[] }
+
 export abstract class BoardStorage {
+    /** Host transaction owns page changes and event allocation under one board lock. */
+    async commitPageChange(boardId: string, userId: string, change: PageChange): Promise<PageChangeResult | null> { return null; }
+
     // Board CRUD
     abstract createBoard(data: CreateBoardInput): Promise<Board>;
     abstract getBoard(id: string): Promise<Board | null>;
@@ -47,6 +58,10 @@ export abstract class BoardStorage {
     abstract reorderPages(boardId: string, pageIds: string[]): Promise<void>;
     abstract deletePage(id: string, boardId?: string): Promise<void>;
 
+    async renamePage(boardId: string, pageId: string, name: string): Promise<Page> {
+        throw new Error('Storage adapter must implement page rename');
+    }
+
     // Element operations (batch-friendly for sync)
     abstract upsertElements(
         pageId: string,
@@ -54,6 +69,9 @@ export abstract class BoardStorage {
     ): Promise<void>;
     abstract getElements(pageId: string): Promise<Element[]>;
     abstract deleteElements(ids: string[]): Promise<void>;
+
+    /** Optional durable transaction hook. Null uses the legacy generic persistence path. */
+    async commitMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[], requestId: string): Promise<MutationCommitResult | null> { return null; }
 
     /** Atomic, scoped persistence contract. Adapters must opt in; unsafe legacy writes fail closed. */
     async applyScopedMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[]): Promise<void> {

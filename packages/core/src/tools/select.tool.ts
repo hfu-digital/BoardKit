@@ -1,3 +1,4 @@
+import { isElementLocked } from '../types/elements';
 import type { Point, Rect, Element, LinearElement } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
 import {
@@ -194,7 +195,7 @@ export class SelectTool extends Tool {
             const next = new Set<string>();
             if (rect) {
                 for (const [id, el] of scene.elements) {
-                    if (el.pageId !== this.currentPageId) continue;
+                    if (isElementLocked(el) || el.pageId !== this.currentPageId) continue;
                     const bounds = calculateBounds(el);
                     if (boundsIntersect(rect, bounds)) next.add(id);
                 }
@@ -345,7 +346,7 @@ export class SelectTool extends Tool {
         const others: Rect[] = [];
         for (const [id, el] of scene.elements) {
             if (movedIds.has(id)) continue;
-            if (el.pageId !== this.currentPageId) continue;
+            if (isElementLocked(el) || el.pageId !== this.currentPageId) continue;
             if (!SNAP_ELIGIBLE_TYPES.has(el.type)) continue;
             others.push(calculateBounds(el));
         }
@@ -397,7 +398,7 @@ export class SelectTool extends Tool {
         // External dependents: linears in the scene NOT in firstPass that
         // bind to one of the moved shapes.
         const externalDependents = getDependentLinears(transientScene, movedShapeIds)
-            .filter((l) => !movedIds.has(l.id))
+            .filter((l) => !isElementLocked(l) && !movedIds.has(l.id))
             .map((l) => recomputeBoundLinear(l, transientScene));
 
         return [...recomputedFirstPass, ...externalDependents];
@@ -409,7 +410,7 @@ export class SelectTool extends Tool {
         let current = id;
         while (true) {
             const parent = Array.from(scene.elements.values()).find((el) =>
-                el.type === 'group' && el.pageId === this.currentPageId &&
+                el.type === 'group' && !isElementLocked(el) && el.pageId === this.currentPageId &&
                 el.data.childIds.includes(current) && !seen.has(el.id));
             if (!parent) return current;
             current = parent.id;
@@ -423,7 +424,7 @@ export class SelectTool extends Tool {
         const visit = (id: string): void => {
             if (expanded.has(id)) return;
             const el = scene.elements.get(id);
-            if (!el || el.pageId !== this.currentPageId) return;
+            if (!el || isElementLocked(el) || el.pageId !== this.currentPageId) return;
             expanded.add(id);
             if (el.type === 'group') for (const child of el.data.childIds) visit(child);
         };
@@ -446,7 +447,7 @@ export class SelectTool extends Tool {
         for (let i = scene.elementOrder.length - 1; i >= 0; i--) {
             const id = scene.elementOrder[i];
             const el = scene.elements.get(id);
-            if (el && el.pageId === this.currentPageId) {
+            if (el && !isElementLocked(el) && el.pageId === this.currentPageId) {
                 if (hitTestElement(position, el, tolerance, scene)) {
                     return id;
                 }

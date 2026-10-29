@@ -89,6 +89,10 @@ export class BoardService {
         userId?: string,
     ): Promise<Page> {
         if (data && ((data.name !== undefined && (typeof data.name !== 'string' || data.name.length > 200)) || !Number.isSafeInteger(data.order))) throw new BadRequestException('Invalid page');
+        if (userId) {
+            const committed = await this.storage.commitPageChange(boardId, userId, { type: 'add', ...data });
+            if (committed) return committed.page!;
+        }
         const pages = await this.storage.getPages(boardId);
         if (pages.length >= 100) throw new BadRequestException('Page limit exceeded');
         const page = await this.storage.createPage(boardId, {
@@ -115,13 +119,25 @@ export class BoardService {
         return this.storage.getPages(boardId);
     }
 
+    async renamePage(boardId: string, pageId: string, name: string, userId?: string): Promise<Page> {
+        if (typeof name !== 'string' || !name.trim() || name.length > 200) throw new BadRequestException('Invalid page name');
+        if (userId) {
+            const committed = await this.storage.commitPageChange(boardId, userId, { type: 'rename', pageId, name: name.trim() });
+            if (committed) return committed.page!;
+        }
+        await this.assertPage(boardId, pageId);
+        return this.storage.renamePage(boardId, pageId, name.trim());
+    }
+
     async reorderPages(
         boardId: string,
         pageIds: string[],
         userId?: string,
     ): Promise<void> {
         if (!Array.isArray(pageIds) || pageIds.length > 1000 || pageIds.some(id => typeof id !== 'string') || new Set(pageIds).size !== pageIds.length) throw new BadRequestException('Invalid page order');
+        if (userId && await this.storage.commitPageChange(boardId, userId, { type: 'reorder', pageIds })) return;
         for (const pageId of pageIds) await this.assertPage(boardId, pageId);
+        if ((await this.storage.getPages(boardId)).length !== pageIds.length) throw new BadRequestException('Complete page order required');
         await this.storage.reorderPages(boardId, pageIds);
         if (userId) {
             const sequence =
@@ -142,6 +158,7 @@ export class BoardService {
         boardId: string,
         userId?: string,
     ): Promise<void> {
+        if (userId && await this.storage.commitPageChange(boardId, userId, { type: 'delete', pageId })) return;
         await this.assertPage(boardId, pageId);
         await this.storage.deletePage(pageId, boardId);
         if (userId) {

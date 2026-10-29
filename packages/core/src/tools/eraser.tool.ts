@@ -1,3 +1,4 @@
+import { isElementLocked } from '../types/elements';
 import type { Point } from '../types/elements';
 import type { SceneState } from '../scene/scene-graph';
 import { pointInBounds, calculateBounds } from '../scene/bounds';
@@ -55,7 +56,7 @@ export class EraserTool extends Tool {
     private eraseAt(position: Point, scene: SceneState): ToolResult {
         for (const [id, el] of scene.elements) {
             if (
-                el.pageId === this.currentPageId &&
+                !isElementLocked(el) && el.pageId === this.currentPageId &&
                 !this.erasedIds.has(id)
             ) {
                 const bounds = calculateBounds(el);

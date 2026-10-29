@@ -30,3 +30,7 @@ export { SpecializedTools } from './specialized/SpecializedTools';
 export type { SpecializedToolsProps } from './specialized/SpecializedTools';
 export { BOARD_TYPES, BOARD_TYPE_LABELS } from './specialized/types';
 export type { BoardType } from './specialized/types';
+
+export { createStarterTemplate } from './specialized/presets';
+
+export { createStarterElements } from './specialized/starter-elements';

@@ -176,7 +176,7 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         if (!await this.authorize(client, 'editor')) return;
         const role = this.clientRoleMap.get(client.id);
-        if (!role || role === 'viewer') {
+        if (role !== 'owner' && role !== 'editor') {
             client.emit('message', {
                 type: 'error',
                 code: 'FORBIDDEN',
@@ -192,10 +192,11 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
         }
         this.rate.set(client.id, budget && Date.now() - budget.start < 1000 ? { ...budget, count: budget.count + 1 } : { start: Date.now(), count: 1 });
         try {
-        const sequence = await this.collaboration.applyMutations(
+        const { sequence, replayed } = await this.collaboration.applyMutationsDetailed(
             boardId,
             userId,
             payload.mutations,
+            payload.requestId,
         );
 
         // ACK to sender
@@ -205,14 +206,15 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
             sequence,
         });
 
-        // Broadcast to others
+        // A retried receipt must never rebroadcast an old update over newer edits.
+        if (replayed) return;
         this.syncRelay.broadcast(boardId, {
             type: 'mutation:broadcast',
             userId,
             mutations: payload.mutations,
             sequence,
         }, client.id);
-        } catch { client.emit('message', { type: 'error', code: 'INVALID_MUTATION', message: 'Mutation rejected' }); }
+        } catch { client.emit('message', { type: 'error', code: 'INVALID_MUTATION', message: 'Mutation rejected', requestId: payload.requestId }); }
     }
 
     @SubscribeMessage('cursor')
@@ -227,12 +229,14 @@ export class BoardGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (!await this.authorize(client, 'viewer')) return;
         if (!payload || !payload.position || !Number.isFinite(payload.position.x) || !Number.isFinite(payload.position.y) ||
             typeof payload.pageId !== 'string' || payload.pageId.length > 200) return;
+        if (payload.viewport && (!Number.isFinite(payload.viewport.zoom) || payload.viewport.zoom < 0.1 || payload.viewport.zoom > 5 || !Number.isFinite(payload.viewport.offset?.x) || !Number.isFinite(payload.viewport.offset?.y))) return;
         this.presence.updateCursor(boardId, userId, payload.position, payload.pageId);
 
         this.syncRelay.broadcast(boardId, {
             type: 'cursor:broadcast',
             userId,
             position: payload.position,
+            viewport: payload.viewport,
             pageId: payload.pageId,
         }, client.id);
     }

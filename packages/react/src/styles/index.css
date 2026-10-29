@@ -383,6 +383,14 @@
     background: var(--bk-bg-surface-active);
     border-color: var(--bk-accent);
 }
+.bk-library-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.bk-library-item:disabled:hover {
+    background: var(--bk-bg-surface-hover);
+    border-color: var(--bk-border);
+}
 
 /* Onboarding overlay — full-viewport dim with a centered card. */
 .bk-onboarding-overlay {

@@ -119,6 +119,14 @@ export class InMemoryBoardStorage extends BoardStorage {
         return this.pages.get(id) ?? null;
     }
 
+    override async renamePage(boardId: string, pageId: string, name: string): Promise<Page> {
+        const page = this.pages.get(pageId);
+        if (!page || page.boardId !== boardId) throw new Error('Foreign page');
+        const updated = { ...page, name, updatedAt: new Date().toISOString() };
+        this.pages.set(pageId, updated);
+        return updated;
+    }
+
     async reorderPages(boardId: string, pageIds: string[]): Promise<void> {
         for (let i = 0; i < pageIds.length; i++) {
             const page = this.pages.get(pageIds[i]);

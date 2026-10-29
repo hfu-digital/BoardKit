@@ -1,3 +1,4 @@
+import { isElementLocked } from '@hfu.digital/boardkit-core';
 import { useEffect } from 'react';
 import { useBoardKit } from '../context/BoardKitProvider';
 import {
@@ -59,9 +60,15 @@ export function useKeyboardShortcuts(): void {
                 e.preventDefault();
                 const { selectedIds } = store.getState();
                 if (selectedIds.size > 0) {
+                    const mutations = [...selectedIds].flatMap(id => {
+                        const el = store.getState().scene.elements.get(id);
+                        return el && !isElementLocked(el) ? [{ type: 'delete' as const, elementId: id, pageId: el.pageId, timestamp: Date.now() }] : [];
+                    });
+                    store.enqueueOutboundMutations(mutations);
                     store.updateScene((scene) => {
                         let s = scene;
                         for (const id of selectedIds) {
+                            if (isElementLocked(s.elements.get(id))) continue;
                             const elements = new Map(s.elements);
                             elements.delete(id);
                             s = {

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Delete, Body, Param, Req, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import { SyncRelay } from '../realtime/sync-relay';
+import { Optional, Controller, Get, Post, Patch, Delete, Body, Param, Req, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { BoardService } from '../domain/board.service';
 import { PermissionService } from '../domain/permission.service';
 import { BoardAuthGuard, type AuthenticatedUser } from '../interfaces/auth-guard.interface';
@@ -12,7 +13,14 @@ export class PageController {
         private readonly boardService: BoardService,
         private readonly authGuard: BoardAuthGuard,
         private readonly permissionService: PermissionService,
+        @Optional() private readonly relay?: SyncRelay,
     ) {}
+
+    private async publishPages(boardId: string) {
+        const pages = await this.boardService.getPages(boardId);
+        this.relay?.broadcast(boardId, { type: 'pages:updated', pages });
+        return pages;
+    }
 
     private async getUser(req: RequestWithHeaders): Promise<AuthenticatedUser> {
         const authHeader = req.headers['authorization'];
@@ -39,13 +47,30 @@ export class PageController {
         if (!hasAccess) {
             throw new ForbiddenException('Insufficient permissions');
         }
-        return this.boardService.addPage(
+        const page = await this.boardService.addPage(
             boardId,
-            dto.order !== undefined
-                ? { name: dto.name, order: dto.order }
-                : undefined,
+            { name: dto.name, order: dto.order ?? (await this.boardService.getPages(boardId)).length },
             user.userId,
         );
+        await this.publishPages(boardId);
+        return page;
+    }
+
+    @Patch()
+    async reorderPages(@Req() req: RequestWithHeaders, @Param('boardId') boardId: string, @Body() dto: { pageIds: string[] }) {
+        const user = await this.getUser(req);
+        if (!await this.permissionService.checkAccess(boardId, user.userId, 'editor')) throw new ForbiddenException('Insufficient permissions');
+        await this.boardService.reorderPages(boardId, dto?.pageIds, user.userId);
+        return this.publishPages(boardId);
+    }
+
+    @Patch(':pageId')
+    async renamePage(@Req() req: RequestWithHeaders, @Param('boardId') boardId: string, @Param('pageId') pageId: string, @Body() dto: { name: string }) {
+        const user = await this.getUser(req);
+        if (!await this.permissionService.checkAccess(boardId, user.userId, 'editor')) throw new ForbiddenException('Insufficient permissions');
+        const page = await this.boardService.renamePage(boardId, pageId, dto?.name, user.userId);
+        await this.publishPages(boardId);
+        return page;
     }
 
     @Get()
@@ -87,6 +112,7 @@ export class PageController {
             throw new ForbiddenException('Insufficient permissions');
         }
         await this.boardService.deletePage(pageId, boardId, user.userId);
+        await this.publishPages(boardId);
         return { success: true };
     }
 }

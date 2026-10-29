@@ -25,6 +25,7 @@ export interface MutateMessage {
 export interface CursorMessage {
     type: 'cursor';
     position: Point;
+    viewport?: { offset: Point; zoom: number };
     pageId: string;
 }
 
@@ -90,6 +91,7 @@ export interface CursorBroadcastMessage {
     type: 'cursor:broadcast';
     userId: string;
     position: Point;
+    viewport?: { offset: Point; zoom: number };
     pageId: string;
 }
 
@@ -123,6 +125,7 @@ export interface PongMessage {
 }
 
 export type ServerMessage =
+    | { type: 'pages:updated'; pages: import('./board').Page[] }
     | JoinedMessage
     | SyncDeltaMessage
     | SyncFullMessage

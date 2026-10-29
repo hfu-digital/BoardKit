@@ -21,7 +21,7 @@ export interface Page {
 export interface BoardMember {
     boardId: string;
     userId: string;
-    role: 'owner' | 'editor' | 'viewer';
+    role: 'owner' | 'editor' | 'commenter' | 'viewer';
     joinedAt: string;
 }
 

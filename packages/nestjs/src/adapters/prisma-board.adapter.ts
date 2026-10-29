@@ -1,3 +1,4 @@
+import type { MutationCommitResult, PageChange, PageChangeResult } from '../interfaces/board-storage.interface';
 import { validateMutations } from '../domain/security-validation';
 import type {
     Board,
@@ -43,6 +44,8 @@ type PrismaBoardMemberDelegate = PrismaDelegate & {
 };
 
 export interface PrismaBoardAdapterConfig {
+    commitPageChange?: (boardId: string, userId: string, change: PageChange) => Promise<PageChangeResult>;
+    commitMutations?: (boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[], requestId: string) => Promise<MutationCommitResult>;
     /** Required for atomic collaboration writes; pass an interactive transaction factory. */
     transaction?: <T>(work: (adapter: PrismaBoardAdapter) => Promise<T>) => Promise<T>;
     isBoardAccessible?: (boardId: string) => Promise<boolean>;
@@ -57,6 +60,14 @@ export interface PrismaBoardAdapterConfig {
 export class PrismaBoardAdapter extends BoardStorage {
     constructor(private readonly prisma: PrismaBoardAdapterConfig) {
         super();
+    }
+
+    override async commitPageChange(boardId: string, userId: string, change: PageChange): Promise<PageChangeResult | null> {
+        return this.prisma.commitPageChange ? this.prisma.commitPageChange(boardId, userId, change) : null;
+    }
+
+    override async commitMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[], requestId: string): Promise<MutationCommitResult | null> {
+        return this.prisma.commitMutations ? this.prisma.commitMutations(boardId, userId, mutations, requestId) : null;
     }
 
     override async isBoardAccessible(boardId: string): Promise<boolean> {
@@ -153,6 +164,10 @@ export class PrismaBoardAdapter extends BoardStorage {
 
     async getPage(id: string): Promise<Page | null> {
         return this.prisma.page.findUnique({ where: { id } });
+    }
+
+    override async renamePage(boardId: string, pageId: string, name: string): Promise<Page> {
+        return this.prisma.page.update({ where: { id: pageId, boardId }, data: { name } });
     }
 
     async reorderPages(boardId: string, pageIds: string[]): Promise<void> {

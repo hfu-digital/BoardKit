@@ -37,3 +37,13 @@ describe('specialty history persistence', () => {
         expect(store.getState().scene.elements.get(element.id)).toEqual(element);
     });
 });
+
+it('shared async starter factory covers all twelve board types', async () => {
+    const { createStarterElements } = await import('../specialized/starter-elements');
+    for (const type of ['uml','er','flowchart','automata','network','mind-map','wireframe','kanban','brainstorm','lecture-notes','math','circuit']) {
+        const elements = await createStarterElements(type,'page','user');
+        expect(elements.length).toBeGreaterThan(0);
+        expect(elements.every(el => el.pageId === 'page')).toBe(true);
+        expect(new Set(elements.map(el => el.id)).size).toBe(elements.length);
+    }
+});
