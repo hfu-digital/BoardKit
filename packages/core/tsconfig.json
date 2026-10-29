@@ -4,7 +4,9 @@
         "composite": true,
         "lib": ["ES2022", "DOM"],
         "rootDir": "src",
-        "outDir": "dist"
+        "outDir": "dist",
+        "module": "CommonJS",
+        "moduleResolution": "Node"
     },
     "include": ["src"]
 }
