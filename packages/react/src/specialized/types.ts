@@ -1,0 +1,31 @@
+export const BOARD_TYPES = [
+  "standard",
+  "uml",
+  "er",
+  "flowchart",
+  "automata",
+  "network",
+  "math",
+  "circuit",
+  "mind-map",
+  "wireframe",
+  "kanban",
+  "brainstorm",
+  "lecture-notes",
+] as const;
+export type BoardType = (typeof BOARD_TYPES)[number];
+export const BOARD_TYPE_LABELS: Record<BoardType, string> = {
+  standard: "Whiteboard",
+  uml: "UML diagram",
+  er: "Entity relationship",
+  flowchart: "Flowchart",
+  automata: "Automata",
+  network: "Network diagram",
+  math: "Math",
+  circuit: "Logic circuit",
+  "mind-map": "Mind map",
+  wireframe: "Wireframe",
+  kanban: "Kanban",
+  brainstorm: "Brainstorm",
+  "lecture-notes": "Lecture notes",
+};

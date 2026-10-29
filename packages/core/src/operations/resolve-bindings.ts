@@ -28,6 +28,10 @@ export function resolveLinearEndpoints(
     const startShape = lookupBoundShape(linear.data.startBinding?.elementId, scene);
     const endShape = lookupBoundShape(linear.data.endBinding?.elementId, scene);
 
+    if (linear.data.specialized?.kind === 'circuit-wire') {
+        return [startShape ? getShapeCenter(startShape) : storedStart, endShape ? getShapeCenter(endShape) : storedEnd];
+    }
+
     if (!startShape && !endShape) {
         return [storedStart, storedEnd];
     }
@@ -95,7 +99,9 @@ export function recomputeBoundLinear(
     scene: SceneState,
 ): LinearElement {
     const [start, end] = resolveLinearEndpoints(linear, scene);
-    const newPoints = [...linear.data.points];
+    const newPoints = linear.data.specialized?.kind === 'circuit-wire'
+        ? [start, { x: (start.x + end.x) / 2, y: start.y }, { x: (start.x + end.x) / 2, y: end.y }, end]
+        : [...linear.data.points];
     newPoints[0] = start;
     newPoints[newPoints.length - 1] = end;
     return {

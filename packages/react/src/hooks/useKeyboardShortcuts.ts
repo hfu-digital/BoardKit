@@ -36,7 +36,7 @@ export function useKeyboardShortcuts(): void {
                 e.preventDefault();
                 const mutations = store.getState().history.undo();
                 if (mutations) {
-                    store.updateScene((s) => s);
+                    store.applyHistoryMutations(mutations);
                 }
                 return;
             }
@@ -49,7 +49,7 @@ export function useKeyboardShortcuts(): void {
                 e.preventDefault();
                 const mutations = store.getState().history.redo();
                 if (mutations) {
-                    store.updateScene((s) => s);
+                    store.applyHistoryMutations(mutations);
                 }
                 return;
             }
