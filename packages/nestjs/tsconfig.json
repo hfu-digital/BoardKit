@@ -1,7 +1,9 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "lib": ["ES2022"],
+        "lib": [
+            "ES2022"
+        ],
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
         "rootDir": "src",
@@ -10,7 +12,15 @@
         "moduleResolution": "Node"
     },
     "references": [
-        { "path": "../core" }
+        {
+            "path": "../core"
+        }
     ],
-    "include": ["src"]
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts"
+    ]
 }

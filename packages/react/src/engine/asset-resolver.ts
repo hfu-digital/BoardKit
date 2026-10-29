@@ -6,9 +6,8 @@
  * the resulting `blob:` URL to the renderer. The renderer then loads it as
  * a regular image without any cross-origin or auth concerns.
  *
- * Configuration is module-level (singleton) — `BoardKitProvider` calls
- * `configureAssetResolver()` so the renderer (which has no React context)
- * can call `getResolvedAssetUrl()` synchronously per frame.
+ * Each renderer owns a resolver; standalone helpers keep a legacy default.
+ * Provider configuration and cleanup never affect another mounted board.
  *
  * State per canonical URL:
  *   - 'loading': fetch in flight; renderer skips drawing this frame
@@ -20,11 +19,13 @@ type EntryState = 'loading' | 'ready' | 'error';
 
 interface Entry {
     state: EntryState;
+    controller?: AbortController;
     blobUrl?: string;
     lastErrorAt?: number;
+    retry?: ReturnType<typeof setTimeout>;
 }
 
-interface ResolverConfig {
+export interface ResolverConfig {
     apiUrl: string;
     getAuthToken: () => string | undefined;
     /**
@@ -37,111 +38,152 @@ interface ResolverConfig {
 
 const RETRY_BACKOFF_MS = 5_000;
 
-const cache = new Map<string, Entry>();
-let config: ResolverConfig | null = null;
+export function createAssetResolver() {
+    const cache = new Map<string, Entry>();
+    let config: ResolverConfig | null = null;
 
-/**
- * Subscribers fire after every fetch terminates (success or error). The
- * BoardKitProvider wires `renderer.invalidateScene` so the next rAF tick
- * picks up the freshly-cached blob URL and the image actually paints.
- */
-const readySubscribers = new Set<() => void>();
+    /**
+     * Subscribers fire after every fetch terminates (success or error). The
+     * BoardKitProvider wires `renderer.invalidateScene` so the next rAF tick
+     * picks up the freshly-cached blob URL and the image actually paints.
+     */
+    const readySubscribers = new Set<() => void>();
 
-export function subscribeAssetReady(cb: () => void): () => void {
-    readySubscribers.add(cb);
-    return () => {
-        readySubscribers.delete(cb);
-    };
-}
-
-function notifyAssetReady(): void {
-    for (const cb of readySubscribers) cb();
-}
-
-export function configureAssetResolver(next: ResolverConfig): void {
-    config = next;
-}
-
-/**
- * Reset the resolver and revoke any blob URLs we created. Call from the
- * BoardKitProvider unmount effect to avoid leaking blob URLs across remounts.
- */
-export function resetAssetResolver(): void {
-    for (const entry of cache.values()) {
-        if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
-    }
-    cache.clear();
-    readySubscribers.clear();
-    config = null;
-}
-
-/**
- * Resolve a canonical asset URL to a blob URL the browser can render.
- *
- * Returns `undefined` while loading or while in error backoff — the renderer
- * should simply skip drawing this frame. Once the fetch succeeds, the blob
- * URL is stable for the lifetime of the resolver and subsequent calls return
- * it synchronously.
- *
- * Non-API URLs (data: / blob: / cross-origin http(s)) are returned as-is so
- * legacy elements with absolute external URLs keep working.
- */
-export function getResolvedAssetUrl(url: string): string | undefined {
-    if (!url) return undefined;
-    if (url.startsWith('data:') || url.startsWith('blob:')) {
-        return url;
-    }
-    if (!config) {
-        return url;
-    }
-    // If neither auth nor share token is available, fall back to direct
-    // loading — works for genuinely public URLs and for tests without a
-    // provider. With either token we go through fetchAsset to attach the
-    // appropriate header.
-    const hasAuth = !!config.getAuthToken();
-    const hasShare = !!config.getShareToken?.();
-    if (!hasAuth && !hasShare) {
-        return url;
+    function subscribeAssetReady(cb: () => void): () => void {
+        readySubscribers.add(cb);
+        return () => {
+            readySubscribers.delete(cb);
+        };
     }
 
-    const cached = cache.get(url);
-    if (cached) {
-        if (cached.state === 'ready') return cached.blobUrl;
-        if (cached.state === 'loading') return undefined;
-        // 'error' — retry after the backoff window
-        if (
-            cached.lastErrorAt &&
-            Date.now() - cached.lastErrorAt < RETRY_BACKOFF_MS
-        ) {
-            return undefined;
+    function notifyAssetReady(): void {
+        for (const cb of readySubscribers) cb();
+    }
+
+    function configureAssetResolver(next: ResolverConfig): void {
+        resetAssetResolver(false);
+        config = next;
+        notifyAssetReady();
+    }
+
+    /**
+     * Reset the resolver and revoke any blob URLs we created. Call from the
+     * BoardKitProvider unmount effect to avoid leaking blob URLs across remounts.
+     */
+    function resetAssetResolver(clearSubscribers = true): void {
+        for (const entry of cache.values()) {
+            if (entry.retry) clearTimeout(entry.retry);
+            entry.controller?.abort();
+            if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
+        }
+        cache.clear();
+        if (clearSubscribers) readySubscribers.clear();
+        config = null;
+    }
+
+    /**
+     * Resolve a canonical asset URL to a blob URL the browser can render.
+     *
+     * Returns `undefined` while loading or while in error backoff — the renderer
+     * should simply skip drawing this frame. Once the fetch succeeds, the blob
+     * URL is stable for the lifetime of the resolver and subsequent calls return
+     * it synchronously.
+     *
+     * Non-API URLs (data: / blob: / cross-origin http(s)) are returned as-is so
+     * legacy elements with absolute external URLs keep working.
+     */
+    function getResolvedAssetUrl(url: string): string | undefined {
+        if (!url) return undefined;
+        if (url.startsWith('data:') || url.startsWith('blob:')) {
+            return url;
+        }
+        if (!config) {
+            return url;
+        }
+        let target: URL;
+        try {
+            const base = new URL(config.apiUrl, typeof location !== 'undefined' ? location.href : undefined);
+            target = new URL(url, base);
+            if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) return undefined;
+            const prefix = base.pathname.replace(/\/$/, '');
+            const assetPath = target.pathname.slice(prefix.length);
+            if (target.origin !== base.origin || !target.pathname.startsWith(prefix + '/') ||
+                !/^\/boards\/[^/]+\/assets\/[^/]+$/.test(assetPath)) return target.href;
+        } catch { return undefined; }
+        url = target.href;
+        // If neither auth nor share token is available, fall back to direct
+        // loading — works for genuinely public URLs and for tests without a
+        // provider. With either token we go through fetchAsset to attach the
+        // appropriate header.
+        const hasAuth = !!config.getAuthToken();
+        const hasShare = !!config.getShareToken?.();
+        if (!hasAuth && !hasShare) {
+            return url;
+        }
+
+        const cached = cache.get(url);
+        if (cached) {
+            if (cached.state === 'ready') return cached.blobUrl;
+            if (cached.state === 'loading') return undefined;
+            // 'error' — retry after the backoff window
+            if (
+                cached.lastErrorAt &&
+                Date.now() - cached.lastErrorAt < RETRY_BACKOFF_MS
+            ) {
+                return undefined;
+            }
+        }
+
+        void fetchAsset(url);
+        return undefined;
+    }
+
+    async function fetchAsset(url: string): Promise<void> {
+        if (!config) return;
+        const controller = new AbortController();
+        const entry: Entry = { state: 'loading', controller };
+        cache.set(url, entry);
+        try {
+            const token = config.getAuthToken();
+            const shareToken = config.getShareToken?.();
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (shareToken) headers['x-share-token'] = shareToken;
+            const res = await fetch(url, { headers, signal: controller.signal, credentials: 'omit', redirect: 'error' });
+            if (!res.ok) {
+                throw new Error(`asset fetch ${url} returned ${res.status}`);
+            }
+            const blob = await res.blob();
+            // A reset or a new request may have replaced this entry while awaiting.
+            if (cache.get(url) !== entry) return;
+            const blobUrl = URL.createObjectURL(blob);
+            cache.set(url, { state: 'ready', blobUrl });
+            notifyAssetReady();
+        } catch (err) {
+            if (cache.get(url) !== entry) return;
+            const failed: Entry = { state: 'error', lastErrorAt: Date.now() };
+            cache.set(url, failed);
+            failed.retry = setTimeout(() => { if (cache.get(url) === failed) { cache.delete(url); notifyAssetReady(); } }, RETRY_BACKOFF_MS);
+            // eslint-disable-next-line no-console
+            console.warn('[boardkit] asset fetch failed:', url, err);
+            notifyAssetReady();
         }
     }
 
-    void fetchAsset(url);
-    return undefined;
+    function retain(urls: Set<string>): void {
+        const canonical = new Set(urls);
+        for (const url of urls) {
+            try { if (config) canonical.add(new URL(url, config.apiUrl).href); } catch { /* invalid URLs cannot be cached */ }
+        }
+        for (const [url, entry] of cache) if (!canonical.has(url)) {
+            entry.controller?.abort();
+            if (entry.retry) clearTimeout(entry.retry);
+            if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
+            cache.delete(url);
+        }
+    }
+    return { retain, configureAssetResolver, resetAssetResolver, getResolvedAssetUrl, subscribeAssetReady };
 }
 
-async function fetchAsset(url: string): Promise<void> {
-    if (!config) return;
-    cache.set(url, { state: 'loading' });
-    try {
-        const token = config.getAuthToken();
-        const shareToken = config.getShareToken?.();
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        else if (shareToken) headers['x-share-token'] = shareToken;
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-            throw new Error(`asset fetch ${url} returned ${res.status}`);
-        }
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        cache.set(url, { state: 'ready', blobUrl });
-        notifyAssetReady();
-    } catch (err) {
-        cache.set(url, { state: 'error', lastErrorAt: Date.now() });
-        // eslint-disable-next-line no-console
-        console.warn('[boardkit] asset fetch failed:', url, err);
-        notifyAssetReady();
-    }
-}
+// Legacy standalone helpers retain their independent default owner.
+export const { configureAssetResolver, resetAssetResolver, getResolvedAssetUrl, subscribeAssetReady } = createAssetResolver();

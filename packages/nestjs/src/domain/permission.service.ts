@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import type { ShareLink } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
 
@@ -17,6 +17,7 @@ export class PermissionService {
         userId: string,
         requiredRole: string,
     ): Promise<boolean> {
+        if (!await this.storage.isBoardAccessible(boardId)) return false;
         // Check if user is the owner
         const board = await this.storage.getBoard(boardId);
         if (board && board.ownerId === userId) return true;
@@ -49,9 +50,10 @@ export class PermissionService {
 
     async resolveShareLink(
         token: string,
+        userId?: string,
     ): Promise<{ boardId: string; permission: string } | null> {
         const link = await this.storage.resolveShareLink(token);
-        if (!link) return null;
+        if (!link || !await this.storage.isBoardAccessible(link.boardId) || !await this.storage.canUseShare(token, userId)) return null;
         return { boardId: link.boardId, permission: link.permission };
     }
 
@@ -60,6 +62,7 @@ export class PermissionService {
         permission: string,
         expiresAt?: string,
     ): Promise<ShareLink> {
+        if (!['view', 'edit'].includes(permission) || (expiresAt !== undefined && !Number.isFinite(Date.parse(expiresAt)))) throw new BadRequestException('Invalid share link');
         return this.storage.createShareLink({
             boardId,
             permission: permission as 'view' | 'edit',

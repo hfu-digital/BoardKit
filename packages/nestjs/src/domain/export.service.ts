@@ -12,6 +12,8 @@ import type { Page } from '@hfu.digital/boardkit-core';
 import { BoardStorage } from '../interfaces/board-storage.interface';
 import { AssetStorage } from '../interfaces/asset-storage.interface';
 
+import { validateRenderable } from './security-validation';
+
 export type ExportFormat = 'png' | 'pdf' | 'svg';
 
 // ── Structural types for server-side canvas (host app provides the impl) ──
@@ -123,10 +125,12 @@ export class ExportService {
         }
         const page = pages[0];
         const elements = await this.storage.getElements(page.id);
+        for (const element of elements) validateRenderable(element);
         const bbox = this.computeBoundingBox(elements);
         const width = Math.max(bbox.width + EXPORT_PADDING * 2, DEFAULT_CANVAS_SIZE);
         const height = Math.max(bbox.height + EXPORT_PADDING * 2, DEFAULT_CANVAS_SIZE);
 
+        if (!Number.isFinite(width * height) || width > 16384 || height > 16384 || width * height > 32_000_000) throw new Error('Export pixel limit exceeded');
         const canvas = this.canvasFactory.createCanvas(width, height);
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff';
@@ -145,6 +149,7 @@ export class ExportService {
     private async exportSvg(pages: Page[]): Promise<Buffer> {
         const page = pages[0];
         const elements = await this.storage.getElements(page.id);
+        for (const element of elements) validateRenderable(element);
         const bbox = this.computeBoundingBox(elements);
         const width = Math.max(bbox.width + EXPORT_PADDING * 2, DEFAULT_CANVAS_SIZE);
         const height = Math.max(bbox.height + EXPORT_PADDING * 2, DEFAULT_CANVAS_SIZE);
@@ -544,6 +549,7 @@ export class ExportService {
                     const buffer = await this.assetStorage.download(record.storageKey);
                     const base64 = buffer.toString('base64');
                     const mime = record.mimeType || 'image/png';
+                    if (!/^image\/(png|jpeg|gif|webp|avif)$/.test(mime)) throw new Error('Unsafe embedded MIME');
                     return `    <image x="${x}" y="${y}" width="${size.width}" height="${size.height}" href="data:${mime};base64,${base64}" preserveAspectRatio="xMidYMid meet" />`;
                 }
             } catch {

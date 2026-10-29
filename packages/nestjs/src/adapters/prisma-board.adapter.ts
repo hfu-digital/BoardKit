@@ -1,3 +1,4 @@
+import { validateMutations } from '../domain/security-validation';
 import type {
     Board,
     Page,
@@ -42,6 +43,10 @@ type PrismaBoardMemberDelegate = PrismaDelegate & {
 };
 
 export interface PrismaBoardAdapterConfig {
+    /** Required for atomic collaboration writes; pass an interactive transaction factory. */
+    transaction?: <T>(work: (adapter: PrismaBoardAdapter) => Promise<T>) => Promise<T>;
+    isBoardAccessible?: (boardId: string) => Promise<boolean>;
+    canUseShare?: (token: string, userId?: string) => Promise<boolean>;
     board: PrismaDelegate;
     page: PrismaDelegate;
     element: PrismaElementDelegate;
@@ -52,6 +57,45 @@ export interface PrismaBoardAdapterConfig {
 export class PrismaBoardAdapter extends BoardStorage {
     constructor(private readonly prisma: PrismaBoardAdapterConfig) {
         super();
+    }
+
+    override async isBoardAccessible(boardId: string): Promise<boolean> {
+        return this.prisma.isBoardAccessible ? this.prisma.isBoardAccessible(boardId) : super.isBoardAccessible(boardId);
+    }
+    override async canUseShare(token: string, userId?: string): Promise<boolean> {
+        return this.prisma.canUseShare ? this.prisma.canUseShare(token, userId) : true;
+    }
+    override async applyScopedMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[]): Promise<void> {
+        validateMutations(mutations, userId);
+        if (!this.prisma.transaction) throw new Error('Atomic transaction factory required');
+        await this.prisma.transaction(async (tx) => {
+            const board = await tx.getBoard(boardId);
+            if (!board || !await tx.isBoardAccessible(boardId)) throw new Error('Board unavailable');
+            const role = board.ownerId === userId ? 'owner' : await tx.getMemberRole(boardId, userId);
+            if (role !== 'editor' && role !== 'owner') throw new Error('Permission revoked');
+            // Validate the entire batch before any write.
+            for (const m of mutations) {
+                const page = await tx.getPage(m.pageId);
+                if (!page || page.boardId !== boardId) throw new Error('Foreign page');
+                const existing = await tx.prisma.element.findUnique({ where: { id: m.elementId } });
+                if (existing && existing.pageId !== m.pageId) throw new Error('Foreign element');
+                if (existing && m.type === 'update' && existing.type && existing.type !== (m.data as any).type) throw new Error('Element type is immutable');
+                if (m.type === 'create' && existing) throw new Error('Element already exists');
+                if (m.type !== 'create' && !existing && !mutations.some(x => x.type === 'create' && x.elementId === m.elementId && x.pageId === m.pageId)) throw new Error('Unknown element');
+            }
+            for (const m of mutations) {
+                if (m.type === 'delete') {
+                    await tx.prisma.element.deleteMany({ where: { id: m.elementId, pageId: m.pageId, page: { boardId } } });
+                } else {
+                    const el = m.data as any;
+                    if (m.type === 'create') {
+                        await tx.prisma.element.create({ data: { id: m.elementId, pageId: m.pageId, type: el.type, data: el.data, zIndex: Math.trunc(el.zIndex) % 0x7fffffff, createdBy: userId } });
+                    } else {
+                        await tx.prisma.element.update({ where: { id: m.elementId, pageId: m.pageId, page: { boardId } }, data: { data: el.data, zIndex: Math.trunc(el.zIndex) % 0x7fffffff } });
+                    }
+                }
+            }
+        });
     }
 
     async createBoard(data: CreateBoardInput): Promise<Board> {
@@ -79,7 +123,7 @@ export class PrismaBoardAdapter extends BoardStorage {
     }
 
     async updateBoard(id: string, data: Partial<Board>): Promise<Board> {
-        const { id: _id, ...updateData } = data;
+        const updateData = { ...(data.name !== undefined ? { name: data.name } : {}), ...(data.isArchived !== undefined ? { isArchived: data.isArchived } : {}) };
         return this.prisma.board.update({
             where: { id },
             data: updateData,
@@ -114,14 +158,14 @@ export class PrismaBoardAdapter extends BoardStorage {
     async reorderPages(boardId: string, pageIds: string[]): Promise<void> {
         for (let i = 0; i < pageIds.length; i++) {
             await this.prisma.page.update({
-                where: { id: pageIds[i] },
+                where: { id: pageIds[i], boardId },
                 data: { order: i },
             });
         }
     }
 
-    async deletePage(id: string): Promise<void> {
-        await this.prisma.page.delete({ where: { id } });
+    async deletePage(id: string, boardId?: string): Promise<void> {
+        await this.prisma.page.delete({ where: { id, ...(boardId ? { boardId } : {}) } });
     }
 
     async upsertElements(
@@ -149,10 +193,10 @@ export class PrismaBoardAdapter extends BoardStorage {
             // which is plenty for visual stacking.
             const zIndex = Math.trunc(el.zIndex) % 0x7fffffff;
             await this.prisma.element.upsert({
-                where: { id: el.id },
+                where: { id: el.id, pageId },
                 create: {
                     id: el.id,
-                    pageId: el.pageId,
+                    pageId,
                     type: el.type,
                     data: el.data,
                     zIndex,

@@ -37,6 +37,7 @@ export class AssetService {
         file: Buffer,
         meta: AssetMeta,
     ): Promise<Asset> {
+        meta = { ...meta, sizeBytes: file.byteLength };
         // Validate file size
         const sizeMb = meta.sizeBytes / (1024 * 1024);
         if (sizeMb > this.limits.maxAssetSizeMb) {
@@ -63,7 +64,7 @@ export class AssetService {
             'image/jpeg',
             'image/gif',
             'image/webp',
-            'image/svg+xml',
+
             'image/avif',
             'image/heic',
             'image/heif',

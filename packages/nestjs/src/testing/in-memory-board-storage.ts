@@ -177,6 +177,27 @@ export class InMemoryBoardStorage extends BoardStorage {
         }
     }
 
+    override async applyScopedMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[]): Promise<void> {
+        const board = this.boards.get(boardId);
+        const role = board?.ownerId === userId ? 'owner' : await this.getMemberRole(boardId, userId);
+        if (!board || board.isArchived || !['editor', 'owner'].includes(role ?? '')) throw new Error('Forbidden');
+        const next = new Map([...this.elements].map(([id, els]) => [id, [...els]]));
+        for (const m of mutations) {
+            if (this.pages.get(m.pageId)?.boardId !== boardId) throw new Error('Foreign page');
+            for (const [page, els] of next) if (page !== m.pageId && els.some(e => e.id === m.elementId)) throw new Error('Foreign element');
+            const list = next.get(m.pageId) ?? [];
+            const index = list.findIndex(e => e.id === m.elementId);
+            if ((m.type === 'create') === (index >= 0)) throw new Error('Invalid target');
+            if (m.type === 'delete') list.splice(index, 1);
+            else {
+                const el = { ...m.data, createdBy: m.type === 'create' ? userId : list[index].createdBy } as Element;
+                if (index < 0) list.push(el); else list[index] = el;
+            }
+            next.set(m.pageId, list);
+        }
+        this.elements = next;
+    }
+
     // Permissions
     async setMember(
         boardId: string,

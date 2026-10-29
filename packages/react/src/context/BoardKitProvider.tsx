@@ -2,8 +2,6 @@ import React, { createContext, useContext, useEffect, useRef, useMemo } from 're
 import { ToolRegistry } from '@hfu.digital/boardkit-core';
 import { BoardStore } from '../store/board-store';
 import { Canvas2DRenderer } from '../engine/canvas-2d-renderer';
-import { configureAssetResolver, resetAssetResolver, subscribeAssetReady } from '../engine/asset-resolver';
-import { subscribeImageReady } from '../engine/element-renderers/image.renderer';
 
 export interface BoardKitTheme {
     selectionColor: string;
@@ -79,35 +77,15 @@ export function BoardKitProvider({ config, children }: BoardKitProviderProps) {
         [config],
     );
 
-    // Re-configure the asset resolver on every config change so authToken
-    // refreshes (and apiUrl swaps in tests) reach the renderer. The resolver
-    // re-reads the token via the closure on every fetch, so identity-stable
-    // refs aren't required.
-    //
-    // Wire both ready-subscribers so a freshly fetched blob URL or a freshly
-    // decoded HTMLImageElement triggers `invalidateScene` on the next rAF
-    // tick — without this the image stays invisible until an unrelated
-    // event causes a re-render.
     useEffect(() => {
-        configureAssetResolver({
+        rendererRef.current!.configureAssets({
             apiUrl: config.apiUrl,
             getAuthToken: () => config.authToken,
             getShareToken: () => config.shareToken,
         });
-        const unsubAsset = subscribeAssetReady(() => rendererRef.current?.invalidateScene());
-        const unsubImage = subscribeImageReady(() => rendererRef.current?.invalidateScene());
-        return () => {
-            unsubAsset();
-            unsubImage();
-        };
     }, [config.apiUrl, config.authToken, config.shareToken]);
 
-    useEffect(() => {
-        return () => {
-            rendererRef.current?.destroy();
-            resetAssetResolver();
-        };
-    }, []);
+    useEffect(() => () => rendererRef.current?.destroy(), []);
 
     return (
         <BoardKitContext.Provider value={value}>

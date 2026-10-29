@@ -45,7 +45,7 @@ export abstract class BoardStorage {
     abstract getPages(boardId: string): Promise<Page[]>;
     abstract getPage(id: string): Promise<Page | null>;
     abstract reorderPages(boardId: string, pageIds: string[]): Promise<void>;
-    abstract deletePage(id: string): Promise<void>;
+    abstract deletePage(id: string, boardId?: string): Promise<void>;
 
     // Element operations (batch-friendly for sync)
     abstract upsertElements(
@@ -54,6 +54,18 @@ export abstract class BoardStorage {
     ): Promise<void>;
     abstract getElements(pageId: string): Promise<Element[]>;
     abstract deleteElements(ids: string[]): Promise<void>;
+
+    /** Atomic, scoped persistence contract. Adapters must opt in; unsafe legacy writes fail closed. */
+    async applyScopedMutations(boardId: string, userId: string, mutations: import('@hfu.digital/boardkit-core').ElementMutation[]): Promise<void> {
+        throw new Error('Storage adapter must implement atomic scoped mutations');
+    }
+
+    /** Host policy hook for soft deletion/moderation and private shares. */
+    async isBoardAccessible(boardId: string): Promise<boolean> {
+        const board = await this.getBoard(boardId);
+        return !!board && !board.isArchived;
+    }
+    async canUseShare(token: string, userId?: string): Promise<boolean> { return true; }
 
     // Permissions
     abstract setMember(
