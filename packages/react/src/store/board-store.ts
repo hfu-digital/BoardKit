@@ -8,7 +8,7 @@ import type {
     GridConfig,
     ElementMutation,
 } from '@hfu.digital/boardkit-core';
-import { History, createScene, createDefaultGridConfig } from '@hfu.digital/boardkit-core';
+import { History, createScene, createDefaultGridConfig, addElement, removeElement, updateElement } from '@hfu.digital/boardkit-core';
 import type { ViewportState } from '../engine/viewport';
 import { createViewport } from '../engine/viewport';
 
@@ -98,6 +98,16 @@ export class BoardStore {
     updateScene(fn: (scene: SceneState) => SceneState): void {
         this.state.scene = fn(this.state.scene);
         this.notify('scene');
+    }
+
+    /** Apply undo/redo results locally and persist them through collaboration. */
+    applyHistoryMutations(mutations: ElementMutation[]): void {
+        this.updateScene(scene => mutations.reduce((next, mutation) => {
+            if (mutation.type === 'create') return addElement(next, mutation.data as Element);
+            if (mutation.type === 'delete') return removeElement(next, mutation.elementId);
+            return updateElement(next, mutation.elementId, mutation.data ?? {});
+        }, scene));
+        this.enqueueOutboundMutations(mutations);
     }
 
     // Viewport mutations

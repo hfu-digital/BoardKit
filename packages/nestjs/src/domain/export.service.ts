@@ -525,6 +525,13 @@ export class ExportService {
         const { position, size, assetId } = element.data;
         const x = position.x + offsetX, y = position.y + offsetY;
 
+        // Equations carry self-contained glyph SVGs rather than uploaded assets.
+        // Embed them as images so public snapshots and SVG exports retain math.
+        // Do not turn arbitrary external URLs into export-time network requests.
+        if (/^data:image\/(?:svg\+xml|png|jpeg|gif|webp)(?:;[^,]*)?,/i.test(element.data.url)) {
+            return `    <image x="${x}" y="${y}" width="${size.width}" height="${size.height}" href="${this.escapeAttr(element.data.url)}" preserveAspectRatio="xMidYMid meet" />`;
+        }
+
         // Try to embed the actual image as a base64 data URI. Without this
         // the public share-link viewer (which renders this SVG via <object>)
         // sees only the placeholder. Fall back to the placeholder on any

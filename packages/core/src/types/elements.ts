@@ -33,6 +33,8 @@ export interface ElementBase {
 export interface StrokeElement extends ElementBase {
     type: 'stroke';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         points: Point[];
         pressures?: number[];
         style: StrokeStyle;
@@ -48,6 +50,8 @@ export interface StrokeElement extends ElementBase {
 export interface ShapeElement extends ElementBase {
     type: 'shape';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         shapeType: 'rectangle' | 'diamond' | 'ellipse';
         position: Point;
         size: { width: number; height: number };
@@ -84,6 +88,8 @@ export interface EndpointBinding {
 export interface LinearElement extends ElementBase {
     type: 'linear';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         linearType: 'line' | 'arrow';
         points: Point[];
         rotation: number;
@@ -101,6 +107,8 @@ export interface LinearElement extends ElementBase {
 export interface TextElement extends ElementBase {
     type: 'text';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         content: string;
         position: Point;
         size: { width: number; height: number };
@@ -113,6 +121,8 @@ export interface TextElement extends ElementBase {
 export interface ImageElement extends ElementBase {
     type: 'image';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         assetId: string;
         url: string;
         position: Point;
@@ -125,6 +135,8 @@ export interface ImageElement extends ElementBase {
 export interface GroupElement extends ElementBase {
     type: 'group';
     data: {
+        /** Persisted specialization hints; ordinary renderers ignore these. */
+        specialized?: { kind: string; [key: string]: unknown };
         childIds: string[];
         bounds: Rect;
     };
